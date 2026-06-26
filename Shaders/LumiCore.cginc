@@ -229,26 +229,15 @@ float VNoise(float2 p)
     return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
 }
 
-// Procedural trickling sweat. Returns a 0..1 sparkle factor and writes wetness.
+// Procedural sweat bead field (0..1 height). Animated to trickle downward.
 // _SweatMask (default white) restricts the region; no painted droplets needed.
-float SweatTerm(float2 uv, float3 worldNormal, out float wetAdd)
+float SweatField(float2 uv)
 {
-    wetAdd = 0;
-#if defined(_SWEAT_ON)
-    float region = tex2D(_SweatMask, uv).r;
     float t = _Time.y * _SweatSpeed;
-    float2 suv = uv * _SweatScale;
-    float n1 = VNoise(suv + float2(0.0, -t));
-    float n2 = VNoise(suv * 2.13 + float2(0.0, -t * 1.7) + 13.7);
-    float drops = smoothstep(0.62, 0.96, n1 * n2 * 2.4);
-    float amount = drops * _SweatAmount * region;
-    // Bias toward downward / front-facing surfaces (gravity).
-    amount *= saturate(0.85 - worldNormal.y * 0.35);
-    wetAdd = amount;
-    return amount * _SweatSparkle;
-#else
-    return 0;
-#endif
+    float2 p = uv * _SweatScale;
+    p.y += t;                                   // trickle (uv +y travels down the body)
+    float n = VNoise(p) * VNoise(p * 2.13 + 19.3);
+    return smoothstep(0.30, 0.72, n * 2.0);
 }
 
 // ---------------------------------------------------------------------
@@ -301,6 +290,21 @@ Surface BuildSurface(v2f i, float3 geomNormal)
 
     albedo = Saturation(albedo, _Saturation) * _Brightness;
 
+    // ---- Skin warmth: sun-kissed (+) or cool porcelain (-) ----
+    albedo.r = saturate(albedo.r + _Warmth * 0.10);
+    albedo.b = saturate(albedo.b - _Warmth * 0.08);
+
+    // ---- Blush / flush (rosy makeup tint, optionally stronger at the edges) ----
+#if defined(_BLUSH_ON)
+    {
+        float bMask = tex2D(_BlushMask, i.uv.xy).r;
+        float ndvB = saturate(dot(geomNormal, normalize(i.viewDir)));
+        float bFres = lerp(1.0, pow(1.0 - ndvB, 2.0), _BlushFresnel);
+        float blush = saturate(bMask * _BlushStrength * bFres);
+        albedo = lerp(albedo, albedo * _BlushColor.rgb, blush);
+    }
+#endif
+
     // ---- Normal map ----
     float3 n = geomNormal;
 #if defined(_NORMALMAP)
@@ -326,28 +330,48 @@ Surface BuildSurface(v2f i, float3 geomNormal)
     occlusion = LerpOneTo(tex2D(_OcclusionMap, i.uv.xy).g, _OcclusionStrength);
 #endif
 
-    // ---- Wetness ----
+    // ---- Wetness + Sweat (unified: both glisten, both can be used alone) ----
+#if defined(_WETNESS_ON) || defined(_SWEAT_ON)
+    float3x3 tbnW = float3x3(normalize(i.worldTangent), normalize(i.worldBitangent), normalize(n));
+    float wet = 0;
+
 #if defined(_WETNESS_ON)
     float wetMask = tex2D(_WetnessMask, i.uv.xy).r;
-    float wet = _Wetness * wetMask;
-    wet += saturate(n.y) * _WetnessUpAccumulation;           // pooling on top faces
-    float sweatWet;
-    s.sweatSparkle = SweatTerm(i.uv.xy, n, sweatWet);
-    wet = saturate(wet + sweatWet);
-
-    albedo     = lerp(albedo, albedo * _WetnessColor.rgb, wet);
-    smoothness = lerp(smoothness, _WetnessSmoothness, wet);
-    metallic   = lerp(metallic, _WetnessMetallic, wet * 0.5);
-
-    // Droplet micro-normals only where it is wet.
+    wet += _Wetness * wetMask + saturate(n.y) * _WetnessUpAccumulation;
+    // Sheet-of-water micro normals across wet skin.
     float3 dropTN = UnpackScaleNormal(tex2D(_DropletNormal, TRANSFORM_TEX(i.uv.xy, _DropletNormal)),
-                                      _DropletStrength * wet);
-    float3x3 tbnW = float3x3(normalize(i.worldTangent), normalize(i.worldBitangent), normalize(n));
+                                      _DropletStrength * saturate(wet));
     n = normalize(mul(dropTN, tbnW));
-#else
-    float sweatWet2;
-    s.sweatSparkle = SweatTerm(i.uv.xy, n, sweatWet2);
-    smoothness = lerp(smoothness, _WetnessSmoothness, saturate(sweatWet2));
+#endif
+
+#if defined(_SWEAT_ON)
+    // Procedural beads with real, analytically-derived bump normals so the
+    // light visibly catches every droplet.
+    float region = tex2D(_SweatMask, i.uv.xy).r;
+    float gravity = saturate(0.85 - n.y * 0.35);
+    float e = 0.5 / max(_SweatScale, 0.001);
+    float bC = SweatField(i.uv.xy);
+    float bX = SweatField(i.uv.xy + float2(e, 0));
+    float bY = SweatField(i.uv.xy + float2(0, e));
+    float beads = bC * _SweatAmount * region * gravity;
+    s.sweatSparkle = beads * _SweatSparkle;
+
+    float2 grad = float2(bX - bC, bY - bC) * _SweatScale * beads * 6.0;
+    float3 beadN = normalize(float3(-grad, 1.0));
+    n = normalize(mul(beadN, tbnW));
+
+    // Beads are slick: darken a touch, push smoothness way up locally.
+    albedo     = lerp(albedo, albedo * 0.78, beads * 0.5);
+    smoothness = max(smoothness, beads * 0.97);
+    wet += beads;
+#endif
+
+    wet = saturate(wet);
+#if defined(_WETNESS_ON)
+    albedo   = lerp(albedo, albedo * _WetnessColor.rgb, wet);
+    metallic = lerp(metallic, _WetnessMetallic, wet * 0.5);
+#endif
+    smoothness = lerp(smoothness, max(smoothness, _WetnessSmoothness), wet);
 #endif
 
     // ---- Emission ----
@@ -368,6 +392,20 @@ Surface BuildSurface(v2f i, float3 geomNormal)
         float fres = pow(1.0 - ndv, max(_FresnelGlowPower, 0.01));
         emission += _FresnelGlowColor.rgb * fres * _FresnelGlowStrength;
     }
+
+    // ---- Glitter / body shimmer: twinkling flakes that catch the eye ----
+#if defined(_GLITTER_ON)
+    {
+        float2 cell = floor(i.uv.xy * _GlitterDensity);
+        float rnd  = Hash21(cell);
+        float rnd2 = Hash21(cell + 7.3);
+        float ndv  = saturate(dot(n, normalize(i.viewDir)));
+        float twinkle = sin(rnd * 6.2831 + _Time.y * _GlitterSpeed + ndv * 12.0) * 0.5 + 0.5;
+        float spark = pow(twinkle, max(_GlitterSharpness, 0.1));
+        float present = step(1.0 - _GlitterCoverage, rnd2);
+        emission += spark * present * _GlitterColor.rgb * _GlitterIntensity;
+    }
+#endif
 
     s.albedo      = saturate(albedo);
     s.metallic    = saturate(metallic);
@@ -461,8 +499,9 @@ float3 LightingPBR(Surface s, float3 viewDir, float3 worldPos, float3 lightColor
     direct += back * _SSSColor.rgb * lightColor * atten;
 #endif
 
-    // ---- Sweat / sparkle: tight extra specular pinpoints ----
-    direct += s.sweatSparkle * pow(ndoth, 200.0) * lightColor * atten * 8.0;
+    // ---- Sweat / sparkle: bright glint on top of the bead highlights ----
+    float sweatGlint = pow(ndoth, 90.0) * 6.0 + pow(1.0 - ndotv, 4.0) * 0.5;
+    direct += s.sweatSparkle * sweatGlint * lightColor * atten;
 
     // ---- Sheen, lit portion ----
 #if defined(_SHEEN_ON)
@@ -566,7 +605,10 @@ float4 fragForward(v2f i) : SV_Target
     float3 color = LightingPBR(s, viewDir, i.worldPos, lightColor, lightDir,
                                atten, indirectDiffuse, vertexLight);
 
+    // Emission / glitter / Fresnel glow only contribute once (base pass).
+#if !defined(LUMI_PASS_ADD)
     color += s.emission;
+#endif
 
     // Brightness floor/ceiling so avatars read well in any world.
 #if !defined(LUMI_PASS_ADD)

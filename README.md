@@ -22,7 +22,10 @@ surfaces, animated sweat, rim glow and more.
 | **Parallax depth** ✨ | Height-mapped UV offset that gives cracks and scales real perceived depth. |
 | **Emission glow** | HDR emission map with **pulsing**, **scrolling**, a gradient boost, plus an always-on **Fresnel rim glow** — perfect for glowing red cracks and burning silhouettes. |
 | **Wetness** | Wet-mask driven darkening, smoothness boost, added metalness, **top-face pooling**, and tiling **droplet normals**. |
-| **Sweat** | Animated, gravity-biased trickling droplets with bright pinpoint **sparkle** highlights. |
+| **Sweat** ✨ | Fully procedural trickling beads with real, light-catching bump normals and bright glints — glistening wet skin, no painted map required. |
+| **Glitter / Shimmer** ✨ | Procedural twinkling flakes for body shimmer / highlighter — sparkles as you move. |
+| **Blush / Flush** ✨ | Rosy makeup tint with optional edge-flush for a soft, flushed look. |
+| **Skin Warmth** ✨ | One slider from cool porcelain to sun-kissed warm. |
 | **Rim light** | HDR rim with adjustable width, strength and light-direction bias. |
 | **Matcap** | Camera-space fake reflection (additive or multiply) — cheap extra shine. |
 | **Subsurface** | Thickness-mapped translucency for skin / latex glow-through. |
@@ -52,12 +55,16 @@ them require you to paint any masks — they work on a bare avatar:
 
 - **✨ Glossy Skin** — natural dewy skin with a flattering pink **sheen**, soft
   clear coat, light wetness and warm subsurface. The everyday "good-looking".
+- **💋 Oiled** — sun-kissed, silky **anisotropic** oiled-skin sheen with clear coat
+  and subsurface. The headline "sexy" look.
 - **🖤 Wet Latex** — glossy black rubber: darkened albedo, near-mirror clear coat,
   wetness and strong reflections.
+- **💦 Sweaty** — procedural glistening sweat beads + dewy sheen + subsurface.
+- **🌟 Shimmer** — twinkling **glitter** body shimmer over dewy skin.
+- **💗 Blushed** — warm flushed skin with rosy **blush**, soft sheen and subsurface.
 - **🔥 Demon** — dark reflective skin with a burning red **Fresnel edge glow** and
   red rim (no painted crack map needed — though it's pre-tuned to accept one).
 - **🦋 Iridescent** — colour-shifting thin-film sheen over a glossy coat.
-- **💦 Sweaty** — procedural animated trickling sweat + dewy sheen + subsurface.
 - **♻ Reset** — back to a neutral skin base.
 
 Each preset is a starting point — tweak from there with the full controls.

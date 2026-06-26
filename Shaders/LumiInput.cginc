@@ -15,6 +15,21 @@ float4    _Color;
 float     _Cutoff;
 float     _Saturation;
 float     _Brightness;
+float     _Warmth;              // -1 cool .. +1 sun-kissed warm
+
+// ---- Blush / flush (rosy makeup tint) ----
+sampler2D _BlushMask;
+float4    _BlushColor;
+float     _BlushStrength;
+float     _BlushFresnel;        // extra flush toward the silhouette
+
+// ---- Glitter / body shimmer (procedural twinkle) ----
+float4    _GlitterColor;        // HDR
+float     _GlitterIntensity;
+float     _GlitterDensity;
+float     _GlitterCoverage;     // 0..1 fraction of flakes lit
+float     _GlitterSpeed;
+float     _GlitterSharpness;
 
 // ---- Normal mapping ----
 sampler2D _BumpMap;

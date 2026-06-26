@@ -18,6 +18,8 @@ public class LuminescenceGUI : ShaderGUI
     private static readonly Dictionary<string, string> Keywords = new Dictionary<string, string>
     {
         { "_AlphaTest",        "_ALPHATEST_ON" },
+        { "_BlushToggle",      "_BLUSH_ON" },
+        { "_GlitterToggle",    "_GLITTER_ON" },
         { "_NormalToggle",     "_NORMALMAP" },
         { "_DetailToggle",     "_DETAIL_MAP" },
         { "_MetalToggle",      "_METALLICGLOSSMAP" },
@@ -64,8 +66,27 @@ public class LuminescenceGUI : ShaderGUI
             Tex("_MainTex", "Albedo", "_Color", "Main colour / opacity map.");
             P("_Saturation", "Albedo saturation.");
             P("_Brightness", "Albedo multiplier.");
+            P("_Warmth", "Sun-kissed (+) or cool porcelain (-) skin tone.");
             P("_AlphaTest", "Hard alpha cutout.");
             if (On("_AlphaTest")) P("_Cutoff");
+        });
+
+        Section("Blush — Flush", "_BlushToggle", () =>
+        {
+            Tex("_BlushMask", "Blush Mask (R)");
+            P("_BlushColor", "Rosy tint multiplied onto the skin.");
+            P("_BlushStrength");
+            P("_BlushFresnel", "Add extra flush toward the silhouette.");
+        });
+
+        Section("Glitter — Body Shimmer", "_GlitterToggle", () =>
+        {
+            P("_GlitterColor");
+            P("_GlitterIntensity");
+            P("_GlitterDensity", "How fine/small the flakes are.");
+            P("_GlitterCoverage", "Fraction of the skin that sparkles.");
+            P("_GlitterSpeed", "How fast flakes twinkle.");
+            P("_GlitterSharpness", "Twinkle tightness.");
         });
 
         Section("Normal & Detail", "_NormalToggle", () =>
@@ -263,7 +284,8 @@ public class LuminescenceGUI : ShaderGUI
     {
         "_EmissionToggle", "_SheenToggle", "_ClearCoatToggle", "_AnisoToggle",
         "_IridToggle", "_WetnessToggle", "_SweatToggle", "_RimToggle",
-        "_SSSToggle", "_TonemapToggle", "_ParallaxToggle"
+        "_SSSToggle", "_TonemapToggle", "_ParallaxToggle", "_BlushToggle",
+        "_GlitterToggle"
     };
 
     private void PresetBar()
@@ -273,12 +295,17 @@ public class LuminescenceGUI : ShaderGUI
         EditorGUILayout.LabelField("Quick Looks  —  one click, then tweak", EditorStyles.miniBoldLabel);
         EditorGUILayout.BeginHorizontal();
         if (Chip("✨ Glossy Skin")) Apply(PresetGlossy);
+        if (Chip("💋 Oiled"))       Apply(PresetOiled);
         if (Chip("🖤 Wet Latex"))   Apply(PresetLatex);
-        if (Chip("🔥 Demon"))       Apply(PresetDemon);
         EditorGUILayout.EndHorizontal();
         EditorGUILayout.BeginHorizontal();
-        if (Chip("🦋 Iridescent"))  Apply(PresetIridescent);
         if (Chip("💦 Sweaty"))      Apply(PresetSweat);
+        if (Chip("🌟 Shimmer"))     Apply(PresetShimmer);
+        if (Chip("💗 Blushed"))     Apply(PresetBlushed);
+        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.BeginHorizontal();
+        if (Chip("🔥 Demon"))       Apply(PresetDemon);
+        if (Chip("🦋 Iridescent"))  Apply(PresetIridescent);
         if (Chip("♻ Reset"))        Apply(ResetLook);
         EditorGUILayout.EndHorizontal();
         EditorGUILayout.EndVertical();
@@ -335,6 +362,63 @@ public class LuminescenceGUI : ShaderGUI
         SetC(m, "_SSSColor", new Color(1f, 0.42f, 0.3f, 1f)); SetF(m, "_SSSStrength", 0.6f);
         Enable(m, "_TonemapToggle");
         SetF(m, "_Contrast", 1.06f); SetF(m, "_Vibrance", 0.3f);
+    }
+
+    // Oiled, sun-kissed skin with a silky anisotropic sheen — very "sexy".
+    private void PresetOiled(Material m)
+    {
+        ResetLook(m);
+        SetF(m, "_Warmth", 0.35f);
+        SetF(m, "_Glossiness", 0.72f);
+        Enable(m, "_AnisoToggle");
+        SetF(m, "_Anisotropy", 0.6f); SetF(m, "_AnisoAngle", 1.57f);
+        Enable(m, "_ClearCoatToggle");
+        SetF(m, "_ClearCoat", 0.7f); SetF(m, "_ClearCoatSmoothness", 0.9f);
+        Enable(m, "_WetnessToggle");
+        SetF(m, "_Wetness", 0.35f); SetF(m, "_WetnessSmoothness", 0.93f);
+        SetC(m, "_WetnessColor", new Color(0.7f, 0.6f, 0.55f, 1f));
+        Enable(m, "_SheenToggle");
+        SetC(m, "_SheenColor", new Color(1f, 0.7f, 0.55f, 1f));
+        SetF(m, "_SheenIntensity", 1.0f); SetF(m, "_SheenRoughness", 0.6f); SetF(m, "_SheenLit", 0.55f);
+        Enable(m, "_SSSToggle");
+        SetC(m, "_SSSColor", new Color(1f, 0.4f, 0.3f, 1f)); SetF(m, "_SSSStrength", 0.7f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Contrast", 1.08f); SetF(m, "_Vibrance", 0.35f);
+    }
+
+    // Body shimmer / highlighter — twinkling glitter over dewy skin.
+    private void PresetShimmer(Material m)
+    {
+        ResetLook(m);
+        SetF(m, "_Glossiness", 0.62f); SetF(m, "_Warmth", 0.15f);
+        Enable(m, "_GlitterToggle");
+        SetC(m, "_GlitterColor", new Color(1f, 0.85f, 0.95f, 1f));
+        SetF(m, "_GlitterIntensity", 2f); SetF(m, "_GlitterDensity", 320f);
+        SetF(m, "_GlitterCoverage", 0.55f); SetF(m, "_GlitterSpeed", 5f); SetF(m, "_GlitterSharpness", 18f);
+        Enable(m, "_SheenToggle");
+        SetC(m, "_SheenColor", new Color(1f, 0.7f, 0.8f, 1f)); SetF(m, "_SheenIntensity", 0.9f);
+        Enable(m, "_WetnessToggle");
+        SetF(m, "_Wetness", 0.2f); SetF(m, "_WetnessSmoothness", 0.9f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Vibrance", 0.4f);
+    }
+
+    // Soft flushed look — rosy blush, warm skin, gentle sheen.
+    private void PresetBlushed(Material m)
+    {
+        ResetLook(m);
+        SetF(m, "_Warmth", 0.2f); SetF(m, "_Glossiness", 0.58f);
+        Enable(m, "_BlushToggle");
+        SetC(m, "_BlushColor", new Color(1f, 0.42f, 0.48f, 1f));
+        SetF(m, "_BlushStrength", 0.55f); SetF(m, "_BlushFresnel", 0.4f);
+        Enable(m, "_SheenToggle");
+        SetC(m, "_SheenColor", new Color(1f, 0.6f, 0.62f, 1f)); SetF(m, "_SheenIntensity", 0.85f);
+        Enable(m, "_SSSToggle");
+        SetC(m, "_SSSColor", new Color(1f, 0.45f, 0.4f, 1f)); SetF(m, "_SSSStrength", 0.8f);
+        Enable(m, "_ClearCoatToggle");
+        SetF(m, "_ClearCoat", 0.4f); SetF(m, "_ClearCoatSmoothness", 0.82f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Contrast", 1.05f); SetF(m, "_Vibrance", 0.35f);
     }
 
     // Glossy black latex / rubber.

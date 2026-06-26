@@ -14,8 +14,25 @@ Shader "Luminescence/Avatar"
         _Color              ("Tint", Color) = (1,1,1,1)
         _Saturation         ("Saturation", Range(0,2)) = 1
         _Brightness         ("Albedo Brightness", Range(0,2)) = 1
+        _Warmth             ("Skin Warmth", Range(-1,1)) = 0
         [Toggle(_ALPHATEST_ON)] _AlphaTest ("Alpha Cutout", Float) = 0
         _Cutoff             ("Cutout Threshold", Range(0,1)) = 0.5
+
+        [Header(Blush Flush)]
+        [Toggle(_BLUSH_ON)] _BlushToggle ("Enable Blush", Float) = 0
+        _BlushMask          ("Blush Mask (R)", 2D) = "white" {}
+        _BlushColor         ("Blush Tint", Color) = (1,0.45,0.5,1)
+        _BlushStrength      ("Blush Strength", Range(0,1)) = 0.5
+        _BlushFresnel       ("Edge Flush", Range(0,1)) = 0.3
+
+        [Header(Glitter Body Shimmer)]
+        [Toggle(_GLITTER_ON)] _GlitterToggle ("Enable Glitter", Float) = 0
+        [HDR] _GlitterColor ("Glitter Color", Color) = (1,0.8,0.95,1)
+        _GlitterIntensity   ("Glitter Intensity", Range(0,8)) = 1.5
+        _GlitterDensity     ("Glitter Density", Range(16,1024)) = 300
+        _GlitterCoverage    ("Glitter Coverage", Range(0,1)) = 0.5
+        _GlitterSpeed       ("Twinkle Speed", Range(0,16)) = 4
+        _GlitterSharpness   ("Twinkle Sharpness", Range(1,64)) = 16
 
         [Header(Normal and Detail)]
         [Toggle(_NORMALMAP)] _NormalToggle ("Enable Normal Map", Float) = 0
@@ -202,6 +219,8 @@ Shader "Luminescence/Avatar"
             #pragma shader_feature_local _ANISOTROPY_ON
             #pragma shader_feature_local _IRIDESCENCE_ON
             #pragma shader_feature_local _PARALLAX_ON
+            #pragma shader_feature_local _BLUSH_ON
+            #pragma shader_feature_local _GLITTER_ON
             #pragma shader_feature_local _TONEMAP_ON
             #pragma shader_feature_local _ALPHATEST_ON
             #pragma shader_feature_local _ALPHAPREMULTIPLY_ON
@@ -245,6 +264,7 @@ Shader "Luminescence/Avatar"
             #pragma shader_feature_local _CLEARCOAT_ON
             #pragma shader_feature_local _ANISOTROPY_ON
             #pragma shader_feature_local _PARALLAX_ON
+            #pragma shader_feature_local _BLUSH_ON
             #pragma shader_feature_local _ALPHATEST_ON
             #pragma shader_feature_local _ALPHAPREMULTIPLY_ON
             #pragma shader_feature_local _SPECULARHIGHLIGHTS_OFF
