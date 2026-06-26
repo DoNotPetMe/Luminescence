@@ -38,6 +38,25 @@ surfaces, animated sweat, rim glow and more.
 
 ---
 
+## Migrating from another shader (Poiyomi / lilToon / Standard / URP)
+
+Switching an existing avatar over? Use the **Import from another material**
+panel at the top of the inspector:
+
+1. Drag the avatar's current material (any shader) into the **Source** slot.
+2. **Copy Matching** — copies every property whose name matches exactly
+   (albedo, normal, metallic/smoothness, emission, occlusion, colours, tiling…).
+3. **Copy + Smart Map** — also translates common differently-named properties
+   (URP `_BaseMap`/`_BaseColor`, alternate normal/AO/emission/matcap names, …).
+
+Both then **auto-enable the matching features**, so an imported normal or
+emission map actually shows up instead of sitting there switched off.
+
+> Already pasted maps the normal Unity way (gear ▸ *Copy/Paste Material
+> Properties*)? Just hit **Auto-enable from assigned maps** and the matching
+> features (normal, metallic, emission, occlusion, detail, matcap, parallax)
+> switch on automatically.
+
 ## Installation
 
 1. Copy the `Shaders/` and `Editor/` folders into your project's `Assets/`

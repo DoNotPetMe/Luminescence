@@ -12,7 +12,7 @@ using UnityEngine.Rendering;
 
 public class LuminescenceGUI : ShaderGUI
 {
-    private const string Version = "1.2";
+    private const string Version = "1.3";
 
     // property name -> keyword managed by its [Toggle()] drawer.
     private static readonly Dictionary<string, string> Keywords = new Dictionary<string, string>
@@ -61,6 +61,7 @@ public class LuminescenceGUI : ShaderGUI
         InitStyles();
 
         Banner();
+        ImportPanel();
         PresetBar();
 
         Section("Base", null, () =>
@@ -300,6 +301,168 @@ public class LuminescenceGUI : ShaderGUI
         _editor.EnableInstancingField();
         _editor.DoubleSidedGIField();
     }
+
+    // ===================== Import / migrate from another shader =====================
+
+    private static Material _importSource;
+
+    // Properties whose names differ between common avatar shaders and ours.
+    //   sourceName  ->  ourName
+    private static readonly Dictionary<string, string> AliasMap = new Dictionary<string, string>
+    {
+        // URP / Lit
+        { "_BaseMap",        "_MainTex" },
+        { "_BaseColor",      "_Color" },
+        { "_BaseColorMap",   "_MainTex" },
+        // common alternate names
+        { "_MainColor",      "_Color" },
+        { "_NormalMap",      "_BumpMap" },
+        { "_Normal",         "_BumpMap" },
+        { "_NormalTex",      "_BumpMap" },
+        { "_MetallicMap",    "_MetallicGlossMap" },
+        { "_SpecGlossMap",   "_MetallicGlossMap" },
+        { "_RoughnessMap",   "_MetallicGlossMap" },
+        { "_AO",             "_OcclusionMap" },
+        { "_AOMap",          "_OcclusionMap" },
+        { "_Emission",       "_EmissionMap" },
+        { "_EmissionTex",    "_EmissionMap" },
+        { "_EmissionMask",   "_EmissionMap" },
+        { "_DetailMap",      "_DetailAlbedoMap" },
+        // matcap aliases (Poiyomi / lilToon)
+        { "_MatCap",         "_Matcap" },
+        { "_MatCapTex",      "_Matcap" },
+        { "_MatcapTex",      "_Matcap" },
+    };
+
+    private void ImportPanel()
+    {
+        var box = new GUIStyle(EditorStyles.helpBox) { padding = new RectOffset(6, 6, 6, 6) };
+        EditorGUILayout.BeginVertical(box);
+        EditorGUILayout.LabelField("Import from another material", EditorStyles.miniBoldLabel);
+
+        _importSource = (Material)EditorGUILayout.ObjectField(
+            new GUIContent("Source", "Drag any material here (Poiyomi, lilToon, Standard, URP…) to copy its textures and values onto this one."),
+            _importSource, typeof(Material), false);
+
+        using (new EditorGUI.DisabledScope(_importSource == null || (_importSource != null && _importSource.Equals(_editor.target))))
+        {
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button(new GUIContent("Copy Matching",
+                    "Copy every property whose name matches exactly."), GUILayout.Height(20)))
+                Apply(m => ImportFrom(_importSource, m, false));
+            if (GUILayout.Button(new GUIContent("Copy + Smart Map",
+                    "Also translate common Poiyomi/lilToon/Standard/URP names."), GUILayout.Height(20)))
+                Apply(m => ImportFrom(_importSource, m, true));
+            EditorGUILayout.EndHorizontal();
+        }
+
+        if (GUILayout.Button(new GUIContent("Auto-enable from assigned maps",
+                "Already pasted maps the normal Unity way? Click to switch on the matching features."), GUILayout.Height(20)))
+            Apply(AutoEnable);
+
+        EditorGUILayout.LabelField(
+            "Copies textures (with tiling/offset), colours and values, then turns on the matching features.",
+            EditorStyles.wordWrappedMiniLabel);
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.Space(2);
+    }
+
+    private void ImportFrom(Material src, Material dst, bool smart)
+    {
+        if (src == null || src.shader == null || dst == null) return;
+        Undo.RecordObject(dst, "Import Material Properties");
+
+        Shader shader = src.shader;
+        int count = ShaderUtil.GetPropertyCount(shader);
+        int copied = 0;
+        for (int i = 0; i < count; i++)
+        {
+            string name = ShaderUtil.GetPropertyName(shader, i);
+            var type = ShaderUtil.GetPropertyType(shader, i);
+            if (CopyProp(src, dst, name, name, type, false)) copied++;
+        }
+
+        if (smart)
+        {
+            foreach (var kv in AliasMap)
+            {
+                int idx = FindPropIndex(shader, kv.Key);
+                if (idx < 0) continue;
+                var type = ShaderUtil.GetPropertyType(shader, idx);
+                if (CopyProp(src, dst, kv.Key, kv.Value, type, true)) copied++;
+            }
+        }
+
+        AutoEnable(dst);
+        Debug.Log($"[Luminescence] Imported {copied} properties from \"{src.name}\" ({shader.name}) onto \"{dst.name}\".");
+    }
+
+    // Copy a single property by type. When 'guarded' (alias mode) we never
+    // clobber an existing texture with a different-named source.
+    private bool CopyProp(Material src, Material dst, string srcName, string dstName,
+                          ShaderUtil.ShaderPropertyType type, bool guarded)
+    {
+        if (!dst.HasProperty(dstName) || !src.HasProperty(srcName)) return false;
+        switch (type)
+        {
+            case ShaderUtil.ShaderPropertyType.Color:
+                dst.SetColor(dstName, src.GetColor(srcName));
+                return true;
+            case ShaderUtil.ShaderPropertyType.Vector:
+                dst.SetVector(dstName, src.GetVector(srcName));
+                return true;
+            case ShaderUtil.ShaderPropertyType.Float:
+            case ShaderUtil.ShaderPropertyType.Range:
+                dst.SetFloat(dstName, src.GetFloat(srcName));
+                return true;
+            case ShaderUtil.ShaderPropertyType.TexEnv:
+                Texture t = src.GetTexture(srcName);
+                if (guarded && (t == null || dst.GetTexture(dstName) != null)) return false;
+                dst.SetTexture(dstName, t);
+                dst.SetTextureScale(dstName, src.GetTextureScale(srcName));
+                dst.SetTextureOffset(dstName, src.GetTextureOffset(srcName));
+                return true;
+        }
+        return false;
+    }
+
+    private static int FindPropIndex(Shader shader, string name)
+    {
+        int count = ShaderUtil.GetPropertyCount(shader);
+        for (int i = 0; i < count; i++)
+            if (ShaderUtil.GetPropertyName(shader, i) == name) return i;
+        return -1;
+    }
+
+    // Turn on the features whose maps/values are actually present, so imported
+    // or hand-pasted textures don't sit there invisible.
+    private void AutoEnable(Material m)
+    {
+        Undo.RecordObject(m, "Auto-enable Features");
+        EnableIf(m, m.GetTexture("_BumpMap") != null, "_NormalToggle", "_NORMALMAP");
+        EnableIf(m, m.GetTexture("_MetallicGlossMap") != null, "_MetalToggle", "_METALLICGLOSSMAP");
+        EnableIf(m, m.GetTexture("_OcclusionMap") != null, "_OcclToggle", "_OCCLUSIONMAP");
+        EnableIf(m, m.GetTexture("_DetailAlbedoMap") != null || m.GetTexture("_DetailNormalMap") != null,
+                 "_DetailToggle", "_DETAIL_MAP");
+        EnableIf(m, m.GetTexture("_Matcap") != null, "_MatcapToggle", "_MATCAP_ON");
+        EnableIf(m, m.GetTexture("_ParallaxMap") != null, "_ParallaxToggle", "_PARALLAX_ON");
+
+        bool emits = m.GetTexture("_EmissionMap") != null &&
+                     m.HasProperty("_EmissionColor") && Lum(m.GetColor("_EmissionColor")) > 0.001f;
+        EnableIf(m, emits, "_EmissionToggle", "_EMISSION");
+        if (emits) m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+
+        EditorUtility.SetDirty(m);
+    }
+
+    private static void EnableIf(Material m, bool cond, string toggleProp, string keyword)
+    {
+        if (!cond) return;
+        if (m.HasProperty(toggleProp)) m.SetFloat(toggleProp, 1f);
+        m.EnableKeyword(keyword);
+    }
+
+    private static float Lum(Color c) => c.r * 0.2126f + c.g * 0.7152f + c.b * 0.0722f;
 
     // ===================== Presets =====================
     private static readonly string[] LookToggles =
