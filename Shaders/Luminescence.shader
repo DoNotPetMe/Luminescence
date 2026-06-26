@@ -128,9 +128,27 @@ Shader "Luminescence/Avatar"
         _SweatSparkle       ("Sparkle Intensity", Range(0,4)) = 1
         _SweatScale         ("Sweat Tiling", Range(0.1,16)) = 4
 
+        [Header(Holographic Flow)]
+        [Toggle(_HOLO_ON)] _HoloToggle ("Enable Holographic", Float) = 0
+        _HoloStrength       ("Holo Strength", Range(0,8)) = 1.5
+        _HoloScale          ("Holo Scale", Range(0.1,16)) = 3
+        _HoloSpeed          ("Holo Flow Speed", Range(0,8)) = 1
+        _HoloFreq           ("Holo Color Frequency", Range(1,12)) = 5
+        _HoloShift          ("Holo Hue Shift", Range(0,1)) = 0
+
+        [Header(Inner Glow)]
+        [Toggle(_INNERGLOW_ON)] _InnerGlowToggle ("Enable Inner Glow", Float) = 0
+        [HDR] _InnerGlowColor ("Inner Glow Color", Color) = (1,0.2,0.4,1)
+        _InnerGlowStrength  ("Inner Glow Strength", Range(0,8)) = 1
+        _InnerGlowPower     ("Inner Glow Tightness", Range(0.1,8)) = 1.5
+        _InnerGlowPulse     ("Pulse Rate", Range(0,16)) = 2
+        _InnerGlowPulseMin  ("Pulse Floor", Range(0,1)) = 0.4
+        _InnerGlowHeartbeat ("Heartbeat (vs Smooth)", Range(0,1)) = 0
+
         [Header(Rim Light)]
         [Toggle(_RIM_ON)] _RimToggle ("Enable Rim", Float) = 0
-        [HDR] _RimColor     ("Rim Color", Color) = (1,1,1,1)
+        [HDR] _RimColor     ("Rim Color (top)", Color) = (1,1,1,1)
+        [HDR] _RimColor2    ("Rim Color (bottom)", Color) = (1,1,1,1)
         _RimPower           ("Rim Width", Range(0.1,16)) = 4
         _RimStrength        ("Rim Strength", Range(0,8)) = 1
         _RimBias            ("Rim Light Bias", Range(0,1)) = 0
@@ -221,6 +239,8 @@ Shader "Luminescence/Avatar"
             #pragma shader_feature_local _PARALLAX_ON
             #pragma shader_feature_local _BLUSH_ON
             #pragma shader_feature_local _GLITTER_ON
+            #pragma shader_feature_local _HOLO_ON
+            #pragma shader_feature_local _INNERGLOW_ON
             #pragma shader_feature_local _TONEMAP_ON
             #pragma shader_feature_local _ALPHATEST_ON
             #pragma shader_feature_local _ALPHAPREMULTIPLY_ON

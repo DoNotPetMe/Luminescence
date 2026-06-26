@@ -20,6 +20,8 @@ public class LuminescenceGUI : ShaderGUI
         { "_AlphaTest",        "_ALPHATEST_ON" },
         { "_BlushToggle",      "_BLUSH_ON" },
         { "_GlitterToggle",    "_GLITTER_ON" },
+        { "_HoloToggle",       "_HOLO_ON" },
+        { "_InnerGlowToggle",  "_INNERGLOW_ON" },
         { "_NormalToggle",     "_NORMALMAP" },
         { "_DetailToggle",     "_DETAIL_MAP" },
         { "_MetalToggle",      "_METALLICGLOSSMAP" },
@@ -45,7 +47,7 @@ public class LuminescenceGUI : ShaderGUI
 
     private MaterialEditor _editor;
     private MaterialProperty[] _props;
-    private static GUIStyle _foldLabel, _title, _sub, _chip;
+    private static GUIStyle _foldLabel, _title, _sub, _chip, _danger;
     private static bool _stylesReady;
 
     private static readonly Color BarOn  = new Color(0.27f, 0.22f, 0.34f, 1f);
@@ -208,9 +210,29 @@ public class LuminescenceGUI : ShaderGUI
             P("_SweatScale", "Droplet tiling.");
         });
 
+        Section("Holographic Flow", "_HoloToggle", () =>
+        {
+            P("_HoloStrength", "Brightness of the flowing oil-slick film.");
+            P("_HoloScale");
+            P("_HoloSpeed", "How fast the hologram flows.");
+            P("_HoloFreq", "Colour banding frequency.");
+            P("_HoloShift", "Hue offset.");
+        });
+
+        Section("Inner Glow", "_InnerGlowToggle", () =>
+        {
+            P("_InnerGlowColor", "Lit-from-within core glow.");
+            P("_InnerGlowStrength");
+            P("_InnerGlowPower", "Tightness of the central glow.");
+            P("_InnerGlowPulse", "Pulse / beat rate.");
+            P("_InnerGlowPulseMin", "Lowest brightness of the pulse.");
+            P("_InnerGlowHeartbeat", "0 = smooth breathing, 1 = lub-dub heartbeat.");
+        });
+
         Section("Rim Light", "_RimToggle", () =>
         {
-            P("_RimColor");
+            P("_RimColor", "Top rim colour.");
+            P("_RimColor2", "Bottom rim colour (vertical gradient).");
             P("_RimPower", "Rim width (higher = thinner).");
             P("_RimStrength");
             P("_RimBias", "Bias the rim toward the light direction.");
@@ -285,7 +307,7 @@ public class LuminescenceGUI : ShaderGUI
         "_EmissionToggle", "_SheenToggle", "_ClearCoatToggle", "_AnisoToggle",
         "_IridToggle", "_WetnessToggle", "_SweatToggle", "_RimToggle",
         "_SSSToggle", "_TonemapToggle", "_ParallaxToggle", "_BlushToggle",
-        "_GlitterToggle"
+        "_GlitterToggle", "_HoloToggle", "_InnerGlowToggle"
     };
 
     private void PresetBar()
@@ -308,6 +330,19 @@ public class LuminescenceGUI : ShaderGUI
         if (Chip("🦋 Iridescent"))  Apply(PresetIridescent);
         if (Chip("♻ Reset"))        Apply(ResetLook);
         EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.Space(3);
+        EditorGUILayout.LabelField("☠  Dangerous  —  turn heads across the instance", _danger);
+        EditorGUILayout.BeginHorizontal();
+        if (Chip("🌌 Galaxy"))      Apply(PresetGalaxy);
+        if (Chip("🪩 Holographic")) Apply(PresetHolographic);
+        if (Chip("❤️‍🔥 Succubus"))  Apply(PresetSuccubus);
+        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.BeginHorizontal();
+        if (Chip("🌹 Goddess"))     Apply(PresetGoddess);
+        if (Chip("🩸 Liquid Chrome")) Apply(PresetChrome);
+        if (Chip("🍯 Honey"))       Apply(PresetHoney);
+        EditorGUILayout.EndHorizontal();
         EditorGUILayout.EndVertical();
         EditorGUILayout.Space(2);
     }
@@ -322,7 +357,7 @@ public class LuminescenceGUI : ShaderGUI
             if (Keywords.TryGetValue(t, out var kw)) SetKw(m, kw, false);
         }
         SetC(m, "_Color", Color.white);
-        SetF(m, "_Brightness", 1f); SetF(m, "_Saturation", 1f);
+        SetF(m, "_Brightness", 1f); SetF(m, "_Saturation", 1f); SetF(m, "_Warmth", 0f);
         SetF(m, "_Metallic", 0f); SetF(m, "_Glossiness", 0.5f);
         SetF(m, "_FresnelGlowStrength", 0f);
         SetF(m, "_ReflectionStrength", 1f); SetF(m, "_ReflectionFresnel", 1f);
@@ -496,6 +531,127 @@ public class LuminescenceGUI : ShaderGUI
         SetF(m, "_Vibrance", 0.35f);
     }
 
+    // ===================== Dangerous presets =====================
+
+    // Deep-space skin: dark body, twinkling star-glitter, holographic nebula
+    // flow and a soft inner glow.
+    private void PresetGalaxy(Material m)
+    {
+        ResetLook(m);
+        SetC(m, "_Color", new Color(0.06f, 0.05f, 0.10f, 1f));
+        SetF(m, "_Glossiness", 0.85f); SetF(m, "_Metallic", 0.2f);
+        Enable(m, "_GlitterToggle");
+        SetC(m, "_GlitterColor", new Color(1.2f, 1.1f, 1.6f, 1f));
+        SetF(m, "_GlitterIntensity", 3f); SetF(m, "_GlitterDensity", 500f);
+        SetF(m, "_GlitterCoverage", 0.4f); SetF(m, "_GlitterSpeed", 3f); SetF(m, "_GlitterSharpness", 28f);
+        Enable(m, "_HoloToggle");
+        SetF(m, "_HoloStrength", 1.2f); SetF(m, "_HoloScale", 2.5f); SetF(m, "_HoloSpeed", 0.5f);
+        SetF(m, "_HoloFreq", 4f);
+        Enable(m, "_InnerGlowToggle");
+        SetC(m, "_InnerGlowColor", new Color(0.6f, 0.3f, 1.4f, 1f));
+        SetF(m, "_InnerGlowStrength", 0.8f); SetF(m, "_InnerGlowPower", 1.2f);
+        SetF(m, "_InnerGlowPulse", 1f); SetF(m, "_InnerGlowPulseMin", 0.5f);
+        Enable(m, "_ClearCoatToggle"); SetF(m, "_ClearCoat", 0.7f); SetF(m, "_ClearCoatSmoothness", 0.95f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Contrast", 1.15f); SetF(m, "_Vibrance", 0.6f);
+    }
+
+    // Oil-slick chrome: flowing rainbow holographic over a mirror coat.
+    private void PresetHolographic(Material m)
+    {
+        ResetLook(m);
+        SetC(m, "_Color", new Color(0.15f, 0.15f, 0.17f, 1f));
+        SetF(m, "_Glossiness", 0.95f); SetF(m, "_Metallic", 0.6f);
+        Enable(m, "_HoloToggle");
+        SetF(m, "_HoloStrength", 2.2f); SetF(m, "_HoloScale", 3.5f); SetF(m, "_HoloSpeed", 1.3f);
+        SetF(m, "_HoloFreq", 6f);
+        Enable(m, "_IridToggle"); SetF(m, "_Iridescence", 0.7f); SetF(m, "_IridescenceFreq", 6f);
+        Enable(m, "_ClearCoatToggle"); SetF(m, "_ClearCoat", 1f); SetF(m, "_ClearCoatSmoothness", 0.98f);
+        SetF(m, "_ReflectionStrength", 1.6f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Contrast", 1.1f); SetF(m, "_Vibrance", 0.6f);
+    }
+
+    // Burning seductress: dark red skin, beating inner glow, red gradient rim,
+    // edge fire and a sheen of sweat.
+    private void PresetSuccubus(Material m)
+    {
+        ResetLook(m);
+        SetC(m, "_Color", new Color(0.16f, 0.03f, 0.05f, 1f));
+        SetF(m, "_Glossiness", 0.82f); SetF(m, "_Metallic", 0.25f);
+        Enable(m, "_ClearCoatToggle"); SetF(m, "_ClearCoat", 0.9f); SetF(m, "_ClearCoatSmoothness", 0.92f);
+        Enable(m, "_InnerGlowToggle");
+        SetC(m, "_InnerGlowColor", new Color(3f, 0.1f, 0.15f, 1f));
+        SetF(m, "_InnerGlowStrength", 1.3f); SetF(m, "_InnerGlowPower", 1.6f);
+        SetF(m, "_InnerGlowPulse", 6f); SetF(m, "_InnerGlowPulseMin", 0.35f); SetF(m, "_InnerGlowHeartbeat", 1f);
+        SetC(m, "_FresnelGlowColor", new Color(3f, 0.12f, 0.05f, 1f));
+        SetF(m, "_FresnelGlowStrength", 1.1f); SetF(m, "_FresnelGlowPower", 3.5f);
+        Enable(m, "_RimToggle");
+        SetC(m, "_RimColor", new Color(4f, 0.3f, 0.1f, 1f));
+        SetC(m, "_RimColor2", new Color(2f, 0.02f, 0.15f, 1f));
+        SetF(m, "_RimPower", 4f); SetF(m, "_RimStrength", 2.2f);
+        Enable(m, "_SweatToggle");
+        SetF(m, "_SweatAmount", 0.4f); SetF(m, "_SweatSparkle", 1.6f); SetF(m, "_SweatScale", 7f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Contrast", 1.2f); SetF(m, "_Vibrance", 0.5f);
+    }
+
+    // Radiant goddess: glowing warm skin, inner light, shimmer, blush, sheen.
+    private void PresetGoddess(Material m)
+    {
+        ResetLook(m);
+        SetF(m, "_Warmth", 0.3f); SetF(m, "_Glossiness", 0.6f);
+        Enable(m, "_InnerGlowToggle");
+        SetC(m, "_InnerGlowColor", new Color(1.6f, 1.2f, 0.7f, 1f));
+        SetF(m, "_InnerGlowStrength", 0.9f); SetF(m, "_InnerGlowPower", 1.4f);
+        SetF(m, "_InnerGlowPulse", 1.2f); SetF(m, "_InnerGlowPulseMin", 0.6f);
+        Enable(m, "_SheenToggle");
+        SetC(m, "_SheenColor", new Color(1.4f, 1.0f, 0.7f, 1f)); SetF(m, "_SheenIntensity", 1.2f);
+        Enable(m, "_GlitterToggle");
+        SetC(m, "_GlitterColor", new Color(1.5f, 1.2f, 0.8f, 1f));
+        SetF(m, "_GlitterIntensity", 1.5f); SetF(m, "_GlitterCoverage", 0.45f); SetF(m, "_GlitterDensity", 280f);
+        Enable(m, "_BlushToggle");
+        SetC(m, "_BlushColor", new Color(1f, 0.5f, 0.5f, 1f)); SetF(m, "_BlushStrength", 0.45f);
+        Enable(m, "_SSSToggle");
+        SetC(m, "_SSSColor", new Color(1f, 0.5f, 0.35f, 1f)); SetF(m, "_SSSStrength", 0.9f);
+        Enable(m, "_RimToggle");
+        SetC(m, "_RimColor", new Color(2f, 1.6f, 1f, 1f)); SetC(m, "_RimColor2", new Color(1.4f, 1f, 1.4f, 1f));
+        SetF(m, "_RimPower", 5f); SetF(m, "_RimStrength", 1.4f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Contrast", 1.08f); SetF(m, "_Vibrance", 0.45f);
+    }
+
+    // Liquid chrome: flawless mirror metal that drinks in the world.
+    private void PresetChrome(Material m)
+    {
+        ResetLook(m);
+        SetC(m, "_Color", new Color(0.9f, 0.9f, 0.92f, 1f));
+        SetF(m, "_Metallic", 1f); SetF(m, "_Glossiness", 1f);
+        SetF(m, "_ReflectionStrength", 1.8f); SetF(m, "_ReflectionFresnel", 1f);
+        Enable(m, "_ClearCoatToggle"); SetF(m, "_ClearCoat", 1f); SetF(m, "_ClearCoatSmoothness", 1f);
+        Enable(m, "_AnisoToggle"); SetF(m, "_Anisotropy", 0.3f); SetF(m, "_AnisoAngle", 1.57f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Contrast", 1.12f); SetF(m, "_Vibrance", 0.3f);
+    }
+
+    // Dripping gold honey: warm molten metal sheen, slick and glistening.
+    private void PresetHoney(Material m)
+    {
+        ResetLook(m);
+        SetC(m, "_Color", new Color(0.55f, 0.32f, 0.07f, 1f));
+        SetF(m, "_Warmth", 0.4f);
+        SetF(m, "_Metallic", 0.85f); SetF(m, "_Glossiness", 0.9f);
+        SetF(m, "_ReflectionStrength", 1.5f);
+        Enable(m, "_ClearCoatToggle"); SetF(m, "_ClearCoat", 1f); SetF(m, "_ClearCoatSmoothness", 0.95f);
+        Enable(m, "_WetnessToggle");
+        SetF(m, "_Wetness", 0.45f); SetF(m, "_WetnessSmoothness", 0.96f);
+        SetC(m, "_WetnessColor", new Color(0.7f, 0.5f, 0.2f, 1f)); SetF(m, "_WetnessMetallic", 0.3f);
+        Enable(m, "_SheenToggle");
+        SetC(m, "_SheenColor", new Color(1.6f, 1.0f, 0.4f, 1f)); SetF(m, "_SheenIntensity", 1.1f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Contrast", 1.12f); SetF(m, "_Vibrance", 0.5f);
+    }
+
     // ===================== Blend presets =====================
     private void ApplyBlendPreset(Material m, int preset)
     {
@@ -637,6 +793,9 @@ public class LuminescenceGUI : ShaderGUI
         _sub.normal.textColor = new Color(0.75f, 0.7f, 0.8f);
 
         _chip = new GUIStyle(EditorStyles.miniButton) { fontSize = 11 };
+
+        _danger = new GUIStyle(EditorStyles.miniBoldLabel);
+        _danger.normal.textColor = new Color(0.95f, 0.35f, 0.45f);
         _stylesReady = true;
     }
 }

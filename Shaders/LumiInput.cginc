@@ -114,8 +114,24 @@ float4    _FresnelGlowColor;    // HDR
 float     _FresnelGlowPower;
 float     _FresnelGlowStrength;
 
-// ---- Rim light ----
+// ---- Holographic oil-slick flow ----
+float     _HoloStrength;
+float     _HoloScale;
+float     _HoloSpeed;
+float     _HoloFreq;
+float     _HoloShift;
+
+// ---- Inner glow (lit-from-within, pulsing / heartbeat) ----
+float4    _InnerGlowColor;      // HDR
+float     _InnerGlowStrength;
+float     _InnerGlowPower;      // tightness of the central glow
+float     _InnerGlowPulse;      // pulse rate
+float     _InnerGlowPulseMin;   // floor of the pulse
+float     _InnerGlowHeartbeat;  // 0 = smooth sine, 1 = lub-dub heartbeat
+
+// ---- Rim light (with optional second colour for a gradient rim) ----
 float4    _RimColor;
+float4    _RimColor2;
 float     _RimPower;
 float     _RimStrength;
 float     _RimBias;             // shift rim toward light direction

@@ -19,6 +19,9 @@ surfaces, animated sweat, rim glow and more.
 | **Clear coat** ✨ | A second, sharp lacquer specular lobe with its own reflection — the secret to a wet, premium latex/glass finish. |
 | **Anisotropy** ✨ | Stretched, silky highlights with adjustable direction — gorgeous on skin, hair and brushed metals. |
 | **Iridescence** ✨ | Thin-film colour-shifting sheen on the reflections for that high-end, otherworldly look. |
+| **Holographic Flow** ☠ | Animated, flowing oil-slick rainbow film that shifts with view and time — pure eye-magnet. |
+| **Inner Glow** ☠ | Lit-from-within core glow that breathes — or beats with a real **lub-dub heartbeat**. |
+| **Dual Rim** ☠ | Two-colour vertical gradient rim light for a luscious silhouette. |
 | **Parallax depth** ✨ | Height-mapped UV offset that gives cracks and scales real perceived depth. |
 | **Emission glow** | HDR emission map with **pulsing**, **scrolling**, a gradient boost, plus an always-on **Fresnel rim glow** — perfect for glowing red cracks and burning silhouettes. |
 | **Wetness** | Wet-mask driven darkening, smoothness boost, added metalness, **top-face pooling**, and tiling **droplet normals**. |
@@ -66,6 +69,20 @@ them require you to paint any masks — they work on a bare avatar:
   red rim (no painted crack map needed — though it's pre-tuned to accept one).
 - **🦋 Iridescent** — colour-shifting thin-film sheen over a glossy coat.
 - **♻ Reset** — back to a neutral skin base.
+
+### ☠ Dangerous looks
+
+The show-stoppers — designed to turn heads across the whole instance:
+
+- **🌌 Galaxy** — deep-space skin with twinkling star-glitter, a holographic
+  nebula flow and a soft purple inner glow.
+- **🪩 Holographic** — flowing rainbow oil-slick over a mirror clear coat.
+- **❤️‍🔥 Succubus** — dark red skin with a **beating** red inner glow, fiery
+  gradient rim, edge fire and a sheen of sweat.
+- **🌹 Goddess** — radiant warm skin lit from within, shimmer, blush and a
+  pearlescent rim.
+- **🩸 Liquid Chrome** — a flawless mirror-metal body that drinks in the world.
+- **🍯 Honey** — warm molten-gold metal, slick and glistening like dripping honey.
 
 Each preset is a starting point — tweak from there with the full controls.
 

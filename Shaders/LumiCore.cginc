@@ -229,6 +229,15 @@ float VNoise(float2 p)
     return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
 }
 
+// Lub-dub heartbeat envelope (0..1) over one second.
+float Heartbeat(float t)
+{
+    t = frac(t);
+    float a = exp(-pow((t - 0.10) * 13.0, 2.0));
+    float b = exp(-pow((t - 0.28) * 13.0, 2.0)) * 0.75;
+    return saturate(a + b);
+}
+
 // Procedural sweat bead field (0..1 height). Animated to trickle downward.
 // _SweatMask (default white) restricts the region; no painted droplets needed.
 float SweatField(float2 uv)
@@ -407,6 +416,29 @@ Surface BuildSurface(v2f i, float3 geomNormal)
     }
 #endif
 
+    // ---- Holographic oil-slick: flowing, view-shifting iridescent film ----
+#if defined(_HOLO_ON)
+    {
+        float2 huv = i.uv.xy * _HoloScale + _Time.y * _HoloSpeed * float2(0.11, 0.07);
+        float flow = VNoise(huv) + 0.5 * VNoise(huv * 2.1 + 7.0);
+        float ndv = saturate(dot(n, normalize(i.viewDir)));
+        float3 holo = Iridescence(ndv * 1.5 + flow * 0.6, _HoloFreq, _HoloShift);
+        emission += holo * _HoloStrength * (0.35 + 0.65 * (1.0 - ndv));
+    }
+#endif
+
+    // ---- Inner glow: lit-from-within core that breathes / beats ----
+#if defined(_INNERGLOW_ON)
+    {
+        float ndv = saturate(dot(n, normalize(i.viewDir)));
+        float core = pow(ndv, max(_InnerGlowPower, 0.01));
+        float sine = sin(_Time.y * _InnerGlowPulse) * 0.5 + 0.5;
+        float beat = Heartbeat(_Time.y * _InnerGlowPulse * 0.25);
+        float pulse = lerp(_InnerGlowPulseMin, 1.0, lerp(sine, beat, _InnerGlowHeartbeat));
+        emission += _InnerGlowColor.rgb * core * _InnerGlowStrength * pulse;
+    }
+#endif
+
     s.albedo      = saturate(albedo);
     s.metallic    = saturate(metallic);
     s.smoothness  = saturate(smoothness);
@@ -560,7 +592,9 @@ float3 LightingPBR(Surface s, float3 viewDir, float3 worldPos, float3 lightColor
     float rim = 1.0 - saturate(dot(N, V));
     rim = pow(rim, max(_RimPower, 0.01));
     float rimDir = lerp(1.0, saturate(dot(N, L)), _RimBias);
-    color += _RimColor.rgb * rim * rimDir * _RimStrength * lightColor;
+    // Vertical gradient between the two rim colours.
+    float3 rimCol = lerp(_RimColor2.rgb, _RimColor.rgb, saturate(N.y * 0.5 + 0.5));
+    color += rimCol * rim * rimDir * _RimStrength * lightColor;
 #endif
 
     return color;
