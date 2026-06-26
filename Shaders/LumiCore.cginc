@@ -209,22 +209,43 @@ float3 ColorGrade(float3 c)
     return max(c, 0.0);
 }
 
-// Animated sweat: two scrolling layers of the mask whose product makes
-// trickling sparkle. Returns a 0..1 sparkle factor and writes wetness.
+// Cheap hash / value noise so sweat works with no texture at all.
+float Hash21(float2 p)
+{
+    p = frac(p * float2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return frac(p.x * p.y);
+}
+
+float VNoise(float2 p)
+{
+    float2 i = floor(p);
+    float2 f = frac(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = Hash21(i);
+    float b = Hash21(i + float2(1, 0));
+    float c = Hash21(i + float2(0, 1));
+    float d = Hash21(i + float2(1, 1));
+    return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
+}
+
+// Procedural trickling sweat. Returns a 0..1 sparkle factor and writes wetness.
+// _SweatMask (default white) restricts the region; no painted droplets needed.
 float SweatTerm(float2 uv, float3 worldNormal, out float wetAdd)
 {
     wetAdd = 0;
 #if defined(_SWEAT_ON)
-    float2 flow = float2(0, -_Time.y * _SweatSpeed);
-    float2 uv0 = uv * _SweatScale + flow;
-    float2 uv1 = uv * _SweatScale * 1.37 + flow * 0.6 + 0.21;
-    float a = tex2D(_SweatMask, uv0).r;
-    float b = tex2D(_SweatMask, uv1).r;
-    float droplets = saturate(a * b * 4.0) * _SweatAmount;
-    // Gravity bias: sweat collects on downward / vertical surfaces.
-    droplets *= saturate(1.0 - worldNormal.y * 0.5);
-    wetAdd = droplets;
-    return droplets * _SweatSparkle;
+    float region = tex2D(_SweatMask, uv).r;
+    float t = _Time.y * _SweatSpeed;
+    float2 suv = uv * _SweatScale;
+    float n1 = VNoise(suv + float2(0.0, -t));
+    float n2 = VNoise(suv * 2.13 + float2(0.0, -t * 1.7) + 13.7);
+    float drops = smoothstep(0.62, 0.96, n1 * n2 * 2.4);
+    float amount = drops * _SweatAmount * region;
+    // Bias toward downward / front-facing surfaces (gravity).
+    amount *= saturate(0.85 - worldNormal.y * 0.35);
+    wetAdd = amount;
+    return amount * _SweatSparkle;
 #else
     return 0;
 #endif
@@ -381,6 +402,12 @@ float3 LightingPBR(Surface s, float3 viewDir, float3 worldPos, float3 lightColor
 
     float ndotv = saturate(dot(N, V)) + LUMI_EPS;
 
+    // ---- Sheen: soft Fresnel glow that hugs the body's curves ----
+#if defined(_SHEEN_ON)
+    float sheenFres = pow(1.0 - ndotv, lerp(8.0, 1.5, _SheenRoughness));
+    float3 sheenCol = _SheenColor.rgb * _SheenIntensity * sheenFres;
+#endif
+
     // ---- Direct light ----
     float3 L = normalize(lightDir);
     float3 H = normalize(L + V);
@@ -437,8 +464,18 @@ float3 LightingPBR(Surface s, float3 viewDir, float3 worldPos, float3 lightColor
     // ---- Sweat / sparkle: tight extra specular pinpoints ----
     direct += s.sweatSparkle * pow(ndoth, 200.0) * lightColor * atten * 8.0;
 
+    // ---- Sheen, lit portion ----
+#if defined(_SHEEN_ON)
+    direct += sheenCol * lerp(1.0, ndotl, _SheenLit) * lightColor * atten;
+#endif
+
     // ---- Indirect diffuse (light probes / ambient) ----
     float3 indirect = indirectDiffuse * diffColor * s.occlusion;
+
+    // ---- Sheen, ambient portion (so it reads in flat-lit worlds) ----
+#if defined(_SHEEN_ON) && !defined(LUMI_PASS_ADD)
+    indirect += sheenCol * (indirectDiffuse + 0.04);
+#endif
 
     // ---- Indirect specular (reflections) — base pass only ----
 #if !defined(_GLOSSYREFLECTIONS_OFF) && !defined(LUMI_PASS_ADD)

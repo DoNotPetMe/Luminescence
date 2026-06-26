@@ -12,7 +12,7 @@ using UnityEngine.Rendering;
 
 public class LuminescenceGUI : ShaderGUI
 {
-    private const string Version = "1.1";
+    private const string Version = "1.2";
 
     // property name -> keyword managed by its [Toggle()] drawer.
     private static readonly Dictionary<string, string> Keywords = new Dictionary<string, string>
@@ -24,6 +24,7 @@ public class LuminescenceGUI : ShaderGUI
         { "_OcclToggle",       "_OCCLUSIONMAP" },
         { "_NoReflections",    "_GLOSSYREFLECTIONS_OFF" },
         { "_NoSpecHi",         "_SPECULARHIGHLIGHTS_OFF" },
+        { "_SheenToggle",      "_SHEEN_ON" },
         { "_ClearCoatToggle",  "_CLEARCOAT_ON" },
         { "_AnisoToggle",      "_ANISOTROPY_ON" },
         { "_IridToggle",       "_IRIDESCENCE_ON" },
@@ -114,6 +115,14 @@ public class LuminescenceGUI : ShaderGUI
                 P("_CubemapBlend", "0 = scene probes, 1 = the cubemap above.");
             }
             P("_NoSpecHi", "Disable direct specular highlights.");
+        });
+
+        Section("Sheen — Skin Glow", "_SheenToggle", () =>
+        {
+            P("_SheenColor", "Soft Fresnel glow that hugs the body's curves.");
+            P("_SheenIntensity");
+            P("_SheenRoughness", "0 = tight edge, 1 = broad, wrapped glow.");
+            P("_SheenLit", "0 = constant glow, 1 = follows the key light.");
         });
 
         Section("Clear Coat", "_ClearCoatToggle", () =>
@@ -250,74 +259,157 @@ public class LuminescenceGUI : ShaderGUI
     }
 
     // ===================== Presets =====================
+    private static readonly string[] LookToggles =
+    {
+        "_EmissionToggle", "_SheenToggle", "_ClearCoatToggle", "_AnisoToggle",
+        "_IridToggle", "_WetnessToggle", "_SweatToggle", "_RimToggle",
+        "_SSSToggle", "_TonemapToggle", "_ParallaxToggle"
+    };
+
     private void PresetBar()
     {
         var box = new GUIStyle(EditorStyles.helpBox) { padding = new RectOffset(6, 6, 6, 6) };
         EditorGUILayout.BeginVertical(box);
-        EditorGUILayout.LabelField("Quick Looks", EditorStyles.miniBoldLabel);
+        EditorGUILayout.LabelField("Quick Looks  —  one click, then tweak", EditorStyles.miniBoldLabel);
         EditorGUILayout.BeginHorizontal();
-        if (Chip("🔥 Demon Skin"))   foreach (var m in Mats()) PresetDemon(m);
-        if (Chip("💧 Wet Latex"))    foreach (var m in Mats()) PresetLatex(m);
-        if (Chip("💦 Sweaty"))       foreach (var m in Mats()) PresetSweat(m);
-        if (Chip("🦋 Iridescent"))   foreach (var m in Mats()) PresetIridescent(m);
+        if (Chip("✨ Glossy Skin")) Apply(PresetGlossy);
+        if (Chip("🖤 Wet Latex"))   Apply(PresetLatex);
+        if (Chip("🔥 Demon"))       Apply(PresetDemon);
+        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.BeginHorizontal();
+        if (Chip("🦋 Iridescent"))  Apply(PresetIridescent);
+        if (Chip("💦 Sweaty"))      Apply(PresetSweat);
+        if (Chip("♻ Reset"))        Apply(ResetLook);
         EditorGUILayout.EndHorizontal();
         EditorGUILayout.EndVertical();
         EditorGUILayout.Space(2);
     }
 
-    private void PresetDemon(Material m)
+    // Clears every optional "look" layer back to a neutral skin base so presets
+    // never stack on top of one another.
+    private void ResetLook(Material m)
     {
-        SetF(m, "_Metallic", 0.6f); SetF(m, "_Glossiness", 0.85f);
-        SetF(m, "_ReflectionStrength", 1.5f); SetF(m, "_ReflectionFresnel", 1f);
-        SetKw(m, "_EMISSION", true);  SetF(m, "_EmissionToggle", 1);
-        SetC(m, "_EmissionColor", new Color(4f, 0.2f, 0.05f, 1f));
-        SetF(m, "_EmissionStrength", 4f);
-        SetF(m, "_EmissionPulseSpeed", 1.5f); SetF(m, "_EmissionPulseMin", 0.5f);
-        SetKw(m, "_CLEARCOAT_ON", true); SetF(m, "_ClearCoatToggle", 1);
-        SetF(m, "_ClearCoat", 1f); SetF(m, "_ClearCoatSmoothness", 0.92f);
-        SetKw(m, "_RIM_ON", true); SetF(m, "_RimToggle", 1);
-        SetC(m, "_RimColor", new Color(3f, 0.15f, 0.05f, 1f));
-        SetF(m, "_RimPower", 6f); SetF(m, "_RimStrength", 1.5f);
-        SetC(m, "_FresnelGlowColor", new Color(2f, 0.1f, 0.05f, 1f));
-        SetF(m, "_FresnelGlowStrength", 0.6f); SetF(m, "_FresnelGlowPower", 5f);
-        SetKw(m, "_TONEMAP_ON", true); SetF(m, "_TonemapToggle", 1);
+        foreach (var t in LookToggles)
+        {
+            SetF(m, t, 0);
+            if (Keywords.TryGetValue(t, out var kw)) SetKw(m, kw, false);
+        }
+        SetC(m, "_Color", Color.white);
+        SetF(m, "_Brightness", 1f); SetF(m, "_Saturation", 1f);
+        SetF(m, "_Metallic", 0f); SetF(m, "_Glossiness", 0.5f);
+        SetF(m, "_FresnelGlowStrength", 0f);
+        SetF(m, "_ReflectionStrength", 1f); SetF(m, "_ReflectionFresnel", 1f);
+        SetF(m, "_Exposure", 1f); SetF(m, "_Contrast", 1f);
+        SetF(m, "_FinalSaturation", 1f); SetF(m, "_Vibrance", 0f); SetF(m, "_HueShift", 0f);
+    }
+
+    private void Apply(Action<Material> preset)
+    {
+        foreach (var m in Mats())
+        {
+            preset(m);
+            EditorUtility.SetDirty(m);
+        }
+    }
+
+    private void Enable(Material m, string toggleProp)
+    {
+        SetF(m, toggleProp, 1f);
+        if (Keywords.TryGetValue(toggleProp, out var kw)) SetKw(m, kw, true);
+    }
+
+    // Natural, dewy, flattering skin — the everyday "sexy".
+    private void PresetGlossy(Material m)
+    {
+        ResetLook(m);
+        SetF(m, "_Glossiness", 0.6f);
+        Enable(m, "_SheenToggle");
+        SetC(m, "_SheenColor", new Color(1f, 0.62f, 0.66f, 1f));
+        SetF(m, "_SheenIntensity", 0.9f); SetF(m, "_SheenRoughness", 0.55f); SetF(m, "_SheenLit", 0.6f);
+        Enable(m, "_ClearCoatToggle");
+        SetF(m, "_ClearCoat", 0.5f); SetF(m, "_ClearCoatSmoothness", 0.85f);
+        Enable(m, "_WetnessToggle");
+        SetF(m, "_Wetness", 0.22f); SetF(m, "_WetnessSmoothness", 0.9f);
+        SetC(m, "_WetnessColor", new Color(0.78f, 0.72f, 0.72f, 1f)); SetF(m, "_WetnessMetallic", 0.04f);
+        Enable(m, "_SSSToggle");
+        SetC(m, "_SSSColor", new Color(1f, 0.42f, 0.3f, 1f)); SetF(m, "_SSSStrength", 0.6f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Contrast", 1.06f); SetF(m, "_Vibrance", 0.3f);
+    }
+
+    // Glossy black latex / rubber.
+    private void PresetLatex(Material m)
+    {
+        ResetLook(m);
+        SetC(m, "_Color", new Color(0.10f, 0.10f, 0.11f, 1f));
+        SetF(m, "_Glossiness", 0.9f);
+        Enable(m, "_ClearCoatToggle");
+        SetF(m, "_ClearCoat", 1f); SetF(m, "_ClearCoatSmoothness", 0.97f);
+        Enable(m, "_WetnessToggle");
+        SetF(m, "_Wetness", 0.6f); SetF(m, "_WetnessSmoothness", 0.97f);
+        SetC(m, "_WetnessColor", new Color(0.4f, 0.4f, 0.42f, 1f)); SetF(m, "_WetnessMetallic", 0.1f);
+        SetF(m, "_ReflectionStrength", 1.4f);
+        Enable(m, "_SheenToggle");
+        SetC(m, "_SheenColor", new Color(0.8f, 0.85f, 1f, 1f));
+        SetF(m, "_SheenIntensity", 0.5f); SetF(m, "_SheenRoughness", 0.4f); SetF(m, "_SheenLit", 0.4f);
+        Enable(m, "_TonemapToggle");
         SetF(m, "_Contrast", 1.1f); SetF(m, "_Vibrance", 0.3f);
     }
 
-    private void PresetLatex(Material m)
+    // Dark reflective skin with a burning red edge glow (no painted map needed).
+    private void PresetDemon(Material m)
     {
-        SetF(m, "_Metallic", 0.05f); SetF(m, "_Glossiness", 0.7f);
-        SetKw(m, "_WETNESS_ON", true); SetF(m, "_WetnessToggle", 1);
-        SetF(m, "_Wetness", 0.7f); SetF(m, "_WetnessSmoothness", 0.96f);
-        SetC(m, "_WetnessColor", new Color(0.45f, 0.45f, 0.45f, 1f));
-        SetF(m, "_WetnessMetallic", 0.12f);
-        SetKw(m, "_CLEARCOAT_ON", true); SetF(m, "_ClearCoatToggle", 1);
-        SetF(m, "_ClearCoat", 1f); SetF(m, "_ClearCoatSmoothness", 0.95f);
-        SetF(m, "_ReflectionStrength", 1.3f); SetF(m, "_ReflectionFresnel", 1f);
-        SetKw(m, "_TONEMAP_ON", true); SetF(m, "_TonemapToggle", 1);
-        SetF(m, "_Vibrance", 0.4f);
+        ResetLook(m);
+        SetC(m, "_Color", new Color(0.14f, 0.04f, 0.05f, 1f));
+        SetF(m, "_Glossiness", 0.8f); SetF(m, "_Metallic", 0.3f);
+        Enable(m, "_ClearCoatToggle");
+        SetF(m, "_ClearCoat", 0.8f); SetF(m, "_ClearCoatSmoothness", 0.9f);
+        SetF(m, "_ReflectionStrength", 1.3f);
+        SetC(m, "_FresnelGlowColor", new Color(3f, 0.15f, 0.05f, 1f));
+        SetF(m, "_FresnelGlowStrength", 1.2f); SetF(m, "_FresnelGlowPower", 4f);
+        Enable(m, "_RimToggle");
+        SetC(m, "_RimColor", new Color(4f, 0.2f, 0.05f, 1f));
+        SetF(m, "_RimPower", 5f); SetF(m, "_RimStrength", 2f);
+        // Pre-tuned for a glowing crack map if you add one (Emission section).
+        SetC(m, "_EmissionColor", new Color(4f, 0.2f, 0.05f, 1f));
+        SetF(m, "_EmissionStrength", 3f); SetF(m, "_EmissionPulseSpeed", 1.5f); SetF(m, "_EmissionPulseMin", 0.5f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Contrast", 1.15f); SetF(m, "_Vibrance", 0.4f);
     }
 
-    private void PresetSweat(Material m)
-    {
-        SetKw(m, "_SWEAT_ON", true); SetF(m, "_SweatToggle", 1);
-        SetF(m, "_SweatAmount", 0.45f); SetF(m, "_SweatSparkle", 1.6f);
-        SetF(m, "_SweatSpeed", 0.2f); SetF(m, "_SweatScale", 5f);
-        SetF(m, "_Glossiness", 0.65f);
-        SetKw(m, "_SSS_ON", true); SetF(m, "_SSSToggle", 1);
-        SetC(m, "_SSSColor", new Color(1f, 0.35f, 0.25f, 1f)); SetF(m, "_SSSStrength", 1f);
-        SetKw(m, "_TONEMAP_ON", true); SetF(m, "_TonemapToggle", 1);
-    }
-
+    // Colour-shifting thin-film sheen.
     private void PresetIridescent(Material m)
     {
-        SetF(m, "_Metallic", 0.4f); SetF(m, "_Glossiness", 0.9f);
-        SetKw(m, "_IRIDESCENCE_ON", true); SetF(m, "_IridToggle", 1);
-        SetF(m, "_Iridescence", 0.8f); SetF(m, "_IridescenceFreq", 5f);
-        SetF(m, "_ReflectionStrength", 1.4f); SetF(m, "_ReflectionFresnel", 1f);
-        SetKw(m, "_CLEARCOAT_ON", true); SetF(m, "_ClearCoatToggle", 1);
-        SetKw(m, "_TONEMAP_ON", true); SetF(m, "_TonemapToggle", 1);
-        SetF(m, "_Vibrance", 0.5f);
+        ResetLook(m);
+        SetC(m, "_Color", new Color(0.2f, 0.2f, 0.22f, 1f));
+        SetF(m, "_Glossiness", 0.9f); SetF(m, "_Metallic", 0.4f);
+        Enable(m, "_IridToggle");
+        SetF(m, "_Iridescence", 0.85f); SetF(m, "_IridescenceFreq", 5f);
+        Enable(m, "_ClearCoatToggle");
+        SetF(m, "_ClearCoat", 1f); SetF(m, "_ClearCoatSmoothness", 0.95f);
+        SetF(m, "_ReflectionStrength", 1.4f);
+        Enable(m, "_SheenToggle");
+        SetC(m, "_SheenColor", new Color(0.7f, 0.8f, 1f, 1f)); SetF(m, "_SheenIntensity", 0.7f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Contrast", 1.1f); SetF(m, "_Vibrance", 0.5f);
+    }
+
+    // Dewy skin with animated trickling sweat + warm subsurface glow.
+    private void PresetSweat(Material m)
+    {
+        ResetLook(m);
+        SetF(m, "_Glossiness", 0.7f);
+        Enable(m, "_SweatToggle");
+        SetF(m, "_SweatAmount", 0.5f); SetF(m, "_SweatSparkle", 1.7f);
+        SetF(m, "_SweatSpeed", 0.2f); SetF(m, "_SweatScale", 7f);
+        Enable(m, "_WetnessToggle");
+        SetF(m, "_Wetness", 0.25f); SetF(m, "_WetnessSmoothness", 0.92f);
+        Enable(m, "_SheenToggle");
+        SetC(m, "_SheenColor", new Color(1f, 0.7f, 0.7f, 1f)); SetF(m, "_SheenIntensity", 0.8f);
+        Enable(m, "_SSSToggle");
+        SetC(m, "_SSSColor", new Color(1f, 0.4f, 0.3f, 1f)); SetF(m, "_SSSStrength", 0.8f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Vibrance", 0.35f);
     }
 
     // ===================== Blend presets =====================

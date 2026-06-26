@@ -46,16 +46,24 @@ surfaces, animated sweat, rim glow and more.
 
 ## One-click looks
 
-The inspector has a **Quick Looks** bar at the top. Click a chip to instantly
-configure the material:
+The inspector has a **Quick Looks** bar at the top. Each chip first **resets**
+the look, then builds it up, so presets never stack or leave leftovers. None of
+them require you to paint any masks — they work on a bare avatar:
 
-- **🔥 Demon Skin** — reflective black, glowing red emission + pulse, clear coat,
-  red rim & Fresnel glow, filmic tonemap.
-- **💧 Wet Latex** — high smoothness, wetness layer + clear coat, strong reflections.
-- **💦 Sweaty** — animated sparkle sweat + warm subsurface glow.
+- **✨ Glossy Skin** — natural dewy skin with a flattering pink **sheen**, soft
+  clear coat, light wetness and warm subsurface. The everyday "good-looking".
+- **🖤 Wet Latex** — glossy black rubber: darkened albedo, near-mirror clear coat,
+  wetness and strong reflections.
+- **🔥 Demon** — dark reflective skin with a burning red **Fresnel edge glow** and
+  red rim (no painted crack map needed — though it's pre-tuned to accept one).
 - **🦋 Iridescent** — colour-shifting thin-film sheen over a glossy coat.
+- **💦 Sweaty** — procedural animated trickling sweat + dewy sheen + subsurface.
+- **♻ Reset** — back to a neutral skin base.
 
-Each preset is a great starting point — tweak from there with the full controls.
+Each preset is a starting point — tweak from there with the full controls.
+
+> **Sheen** is the secret sauce for the "sexy" look: a soft Fresnel glow that
+> traces the body's silhouette and curves, working even in flat-lit worlds.
 
 ## Recreating the reference looks
 

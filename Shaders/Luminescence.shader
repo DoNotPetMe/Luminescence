@@ -48,6 +48,13 @@ Shader "Luminescence/Avatar"
         _CubemapBlend       ("Use Fallback Cubemap", Range(0,1)) = 0
         [Toggle(_SPECULARHIGHLIGHTS_OFF)] _NoSpecHi ("Disable Specular Highlights", Float) = 0
 
+        [Header(Sheen Skin Glow)]
+        [Toggle(_SHEEN_ON)] _SheenToggle ("Enable Sheen", Float) = 0
+        [HDR] _SheenColor   ("Sheen Color", Color) = (1,0.7,0.75,1)
+        _SheenIntensity     ("Sheen Intensity", Range(0,4)) = 1
+        _SheenRoughness     ("Sheen Softness", Range(0,1)) = 0.5
+        _SheenLit           ("Follow Light", Range(0,1)) = 0.6
+
         [Header(Clear Coat)]
         [Toggle(_CLEARCOAT_ON)] _ClearCoatToggle ("Enable Clear Coat", Float) = 0
         _ClearCoat          ("Coat Strength", Range(0,1)) = 1
@@ -77,7 +84,7 @@ Shader "Luminescence/Avatar"
 
         [Header(Emission Glow)]
         [Toggle(_EMISSION)] _EmissionToggle ("Enable Emission", Float) = 0
-        _EmissionMap        ("Emission Map", 2D) = "white" {}
+        _EmissionMap        ("Emission Map", 2D) = "black" {}
         [HDR] _EmissionColor("Emission Color", Color) = (0,0,0,1)
         _EmissionStrength   ("Emission Strength", Range(0,16)) = 1
         _EmissionPulseSpeed ("Pulse Speed", Range(0,16)) = 0
@@ -98,7 +105,7 @@ Shader "Luminescence/Avatar"
 
         [Header(Sweat)]
         [Toggle(_SWEAT_ON)] _SweatToggle ("Enable Sweat", Float) = 0
-        _SweatMask          ("Sweat Mask (R)", 2D) = "black" {}
+        _SweatMask          ("Sweat Region (R)", 2D) = "white" {}
         _SweatAmount        ("Sweat Amount", Range(0,1)) = 0
         _SweatSpeed         ("Trickle Speed", Range(0,2)) = 0.2
         _SweatSparkle       ("Sparkle Intensity", Range(0,4)) = 1
@@ -190,6 +197,7 @@ Shader "Luminescence/Avatar"
             #pragma shader_feature_local _RIM_ON
             #pragma shader_feature_local _MATCAP_ON
             #pragma shader_feature_local _SSS_ON
+            #pragma shader_feature_local _SHEEN_ON
             #pragma shader_feature_local _CLEARCOAT_ON
             #pragma shader_feature_local _ANISOTROPY_ON
             #pragma shader_feature_local _IRIDESCENCE_ON
@@ -233,6 +241,7 @@ Shader "Luminescence/Avatar"
             #pragma shader_feature_local _SWEAT_ON
             #pragma shader_feature_local _RIM_ON
             #pragma shader_feature_local _SSS_ON
+            #pragma shader_feature_local _SHEEN_ON
             #pragma shader_feature_local _CLEARCOAT_ON
             #pragma shader_feature_local _ANISOTROPY_ON
             #pragma shader_feature_local _PARALLAX_ON

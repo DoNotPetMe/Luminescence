@@ -69,6 +69,12 @@ float     _SweatSpeed;          // trickle speed
 float     _SweatSparkle;        // bright pinpoint highlight intensity
 float     _SweatScale;
 
+// ---- Sheen (soft Fresnel skin/velvet glow — the flattering body contour) ----
+float4    _SheenColor;           // HDR tint
+float     _SheenIntensity;
+float     _SheenRoughness;       // 0 = tight edge, 1 = broad wrap
+float     _SheenLit;             // 0 = constant, 1 = follows the light
+
 // ---- Clear coat (lacquered / wet-look top layer) ----
 float     _ClearCoat;           // 0..1 strength
 float     _ClearCoatSmoothness; // top layer gloss
