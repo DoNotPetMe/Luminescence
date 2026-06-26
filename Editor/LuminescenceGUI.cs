@@ -28,6 +28,7 @@ public class LuminescenceGUI : ShaderGUI
         { "_DissolveToggle",   "_DISSOLVE_ON" },
         { "_ProximityToggle",  "_PROXIMITY_ON" },
         { "_RampToggle",       "_RAMP_ON" },
+        { "_GradientToggle",   "_GRADIENT_ON" },
         { "_NormalToggle",     "_NORMALMAP" },
         { "_DetailToggle",     "_DETAIL_MAP" },
         { "_MetalToggle",      "_METALLICGLOSSMAP" },
@@ -79,6 +80,17 @@ public class LuminescenceGUI : ShaderGUI
             P("_Warmth", "Sun-kissed (+) or cool porcelain (-) skin tone.");
             P("_AlphaTest", "Hard alpha cutout.");
             if (On("_AlphaTest")) P("_Cutoff");
+        });
+
+        Section("Gradient Tint", "_GradientToggle", () =>
+        {
+            EditorGUILayout.LabelField("Dual-tone body gradient — the staple of gorgeous aesthetic avatars.",
+                EditorStyles.wordWrappedMiniLabel);
+            P("_GradientColorA", "Lower / front colour.");
+            P("_GradientColorB", "Upper / edge colour.");
+            P("_GradientScale");
+            P("_GradientOffset");
+            P("_GradientMode", "Vertical (along the body) or Fresnel (by view angle).");
         });
 
         Section("Blush — Flush", "_BlushToggle", () =>
@@ -462,7 +474,7 @@ public class LuminescenceGUI : ShaderGUI
         {
             PresetGlossy, PresetOiled, PresetLatex, PresetSweat, PresetShimmer, PresetBlushed,
             PresetIridescent, PresetGalaxy, PresetHolographic, PresetSuccubus, PresetGoddess,
-            PresetChrome, PresetHoney
+            PresetChrome, PresetHoney, PresetDuotone, PresetAllure, PresetAnime
         };
         looks[UnityEngine.Random.Range(0, looks.Length)](m);
     }
@@ -648,7 +660,7 @@ public class LuminescenceGUI : ShaderGUI
         "_IridToggle", "_WetnessToggle", "_SweatToggle", "_RimToggle",
         "_SSSToggle", "_TonemapToggle", "_ParallaxToggle", "_BlushToggle",
         "_GlitterToggle", "_HoloToggle", "_InnerGlowToggle", "_AudioLinkToggle",
-        "_DissolveToggle", "_ProximityToggle", "_RampToggle"
+        "_DissolveToggle", "_ProximityToggle", "_RampToggle", "_GradientToggle"
     };
 
     private void PresetBar()
@@ -692,6 +704,7 @@ public class LuminescenceGUI : ShaderGUI
         if (Chip("✨ Reveal"))      Apply(PresetReveal);
         if (Chip("💖 Allure"))      Apply(PresetAllure);
         if (Chip("🌸 Anime"))       Apply(PresetAnime);
+        if (Chip("🌈 Duotone"))     Apply(PresetDuotone);
         EditorGUILayout.EndHorizontal();
         EditorGUILayout.EndVertical();
         EditorGUILayout.Space(2);
@@ -713,6 +726,7 @@ public class LuminescenceGUI : ShaderGUI
         SetF(m, "_ReflectionStrength", 1f); SetF(m, "_ReflectionFresnel", 1f);
         SetC(m, "_ReflectionTint", Color.white);
         SetC(m, "_SpecularColor", Color.white);
+        SetC(m, "_GradientColorA", Color.white); SetC(m, "_GradientColorB", Color.white);
         SetF(m, "_LightingDirectional", 1f);
         SetF(m, "_DissolveAmount", 0f);
         SetF(m, "_AudioLinkEmission", 0f); SetF(m, "_AudioLinkGlow", 0f);
@@ -1095,6 +1109,22 @@ public class LuminescenceGUI : ShaderGUI
         SetF(m, "_Contrast", 1.05f); SetF(m, "_Vibrance", 0.4f);
     }
 
+    // Duotone: dreamy pastel gradient skin with a soft sheen and coat.
+    private void PresetDuotone(Material m)
+    {
+        ResetLook(m);
+        SetF(m, "_Glossiness", 0.62f);
+        Enable(m, "_GradientToggle");
+        SetC(m, "_GradientColorA", new Color(1.1f, 0.45f, 0.95f, 1f));  // magenta
+        SetC(m, "_GradientColorB", new Color(0.45f, 0.85f, 1.3f, 1f));  // cyan
+        SetF(m, "_GradientScale", 1.2f); SetF(m, "_GradientOffset", -0.1f); SetF(m, "_GradientMode", 0f);
+        Enable(m, "_SheenToggle");
+        SetC(m, "_SheenColor", new Color(1f, 0.8f, 1f, 1f)); SetF(m, "_SheenIntensity", 0.8f);
+        Enable(m, "_ClearCoatToggle"); SetF(m, "_ClearCoat", 0.5f); SetF(m, "_ClearCoatSmoothness", 0.86f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Vibrance", 0.5f); SetF(m, "_Contrast", 1.05f);
+    }
+
     // ===================== Blend presets =====================
     private void ApplyBlendPreset(Material m, int preset)
     {
@@ -1196,6 +1226,7 @@ public class LuminescenceGUI : ShaderGUI
             case "Subsurface (SSS)":
             case "Proximity Glow":
             case "Rim Light":
+            case "Gradient Tint":
                 return AcSexy;
             case "Base":
             case "Normal & Detail":

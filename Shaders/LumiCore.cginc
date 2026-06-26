@@ -40,6 +40,7 @@ struct v2f
     UNITY_FOG_COORDS(6)
     SHADOW_COORDS(7)
     float3 vertexLight: TEXCOORD8;     // baked 4-point vertex lights (base pass)
+    float  objPosY    : TEXCOORD9;     // object-space height for gradient tint
     UNITY_VERTEX_INPUT_INSTANCE_ID
     UNITY_VERTEX_OUTPUT_STEREO
 };
@@ -69,6 +70,7 @@ v2f vert(appdata v)
 
     o.uv.xy = TRANSFORM_TEX(v.uv, _MainTex);
     o.uv.zw = TRANSFORM_TEX(v.uv, _DetailAlbedoMap);
+    o.objPosY = v.vertex.y;
 
     // Per-vertex point lights (only meaningful in the base pass).
     o.vertexLight = 0;
@@ -337,6 +339,19 @@ Surface BuildSurface(v2f i, float3 geomNormal)
     // ---- Skin warmth: sun-kissed (+) or cool porcelain (-) ----
     albedo.r = saturate(albedo.r + _Warmth * 0.10);
     albedo.b = saturate(albedo.b - _Warmth * 0.08);
+
+    // ---- Gradient skin tint: dual-tone along the body or by view angle ----
+#if defined(_GRADIENT_ON)
+    {
+        float g;
+        if (_GradientMode < 0.5)
+            g = saturate(i.objPosY * _GradientScale + _GradientOffset);
+        else
+            g = saturate(pow(1.0 - saturate(dot(geomNormal, normalize(i.viewDir))), 1.5)
+                         * _GradientScale + _GradientOffset);
+        albedo *= lerp(_GradientColorA.rgb, _GradientColorB.rgb, g);
+    }
+#endif
 
     // ---- Blush / flush (rosy makeup tint, optionally stronger at the edges) ----
 #if defined(_BLUSH_ON)

@@ -37,6 +37,7 @@ surfaces, animated sweat, rim glow and more.
 | **Dissolve** ✨ | Animatable reveal/vanish with a glowing HDR edge — procedural (no texture needed), optional texture influence, can be driven by the beat. Clips shadows too. |
 | **Proximity Glow** 💖 | Blooms as a viewer moves closer — the avatar literally lights up for whoever approaches you. |
 | **Toon Ramp** 🌸 | Optional cel-shaded diffuse with shadow tint and adjustable steps, blendable with the PBR base for anime looks. |
+| **Gradient Tint** 🌈 | Dual-tone body gradient (vertical along the body or by view angle) — the staple of gorgeous aesthetic avatars. |
 | **Color grading** ✨ | Final-stage exposure, contrast, saturation, smart vibrance, hue shift and an optional **ACES filmic tonemap** for a rich, cinematic roll-off. |
 | **Quality of life** | Compact styled inspector with inline section toggles, tooltips, **one-click look presets**, **Copy/Paste Look as text** (share looks with friends), **Random** look, **Import from other shaders** (Poiyomi/lilToon/Standard/URP), collapse/expand all, a live **performance/keyword meter**, transparency presets, GPU instancing. |
 
@@ -120,6 +121,7 @@ The show-stoppers — designed to turn heads across the whole instance:
   0→1 for a glowing vanish/return.
 - **💖 Allure** — a warm glow that blooms only as someone steps close to you.
 - **🌸 Anime** — cel-shaded cutie: toon ramp, blush, soft sheen and a clean rim.
+- **🌈 Duotone** — dreamy pastel magenta→cyan gradient skin with a soft sheen.
 
 > **Toolbar tips:** *Copy Look* / *Paste Look* share a complete look as text —
 > paste it onto another material or send it to a friend. *Random* rolls a

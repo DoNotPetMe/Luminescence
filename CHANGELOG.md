@@ -15,6 +15,8 @@ All notable changes to **Luminescence** are documented here.
 - **Proximity Glow** — blooms as a viewer approaches (camera distance).
 - **Toon Ramp** — optional cel diffuse with shadow tint, steps and hardness,
   blendable with the PBR base.
+- **Gradient Tint** — dual-tone body gradient (vertical along the body or by
+  view angle), the staple of aesthetic avatars. Preset: **Duotone**.
 - **Specular highlight colour** tint.
 - **Quality of life:** Copy/Paste Look as shareable clipboard text, Random
   look, Collapse/Expand all, a live keyword/performance meter, and

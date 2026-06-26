@@ -18,6 +18,14 @@ Shader "Luminescence/Avatar"
         [Toggle(_ALPHATEST_ON)] _AlphaTest ("Alpha Cutout", Float) = 0
         _Cutoff             ("Cutout Threshold", Range(0,1)) = 0.5
 
+        [Header(Gradient Tint)]
+        [Toggle(_GRADIENT_ON)] _GradientToggle ("Enable Gradient Tint", Float) = 0
+        [HDR] _GradientColorA ("Color A", Color) = (1,1,1,1)
+        [HDR] _GradientColorB ("Color B", Color) = (1,1,1,1)
+        _GradientScale      ("Gradient Scale", Range(0.1,8)) = 1
+        _GradientOffset     ("Gradient Offset", Range(-2,2)) = 0
+        [Enum(Vertical,0,Fresnel,1)] _GradientMode ("Gradient Mode", Float) = 0
+
         [Header(Blush Flush)]
         [Toggle(_BLUSH_ON)] _BlushToggle ("Enable Blush", Float) = 0
         _BlushMask          ("Blush Mask (R)", 2D) = "white" {}
@@ -279,6 +287,7 @@ Shader "Luminescence/Avatar"
             #pragma shader_feature_local _DISSOLVE_ON
             #pragma shader_feature_local _PROXIMITY_ON
             #pragma shader_feature_local _RAMP_ON
+            #pragma shader_feature_local _GRADIENT_ON
             #pragma shader_feature_local _TONEMAP_ON
             #pragma shader_feature_local _ALPHATEST_ON
             #pragma shader_feature_local _ALPHAPREMULTIPLY_ON
@@ -326,6 +335,7 @@ Shader "Luminescence/Avatar"
             #pragma shader_feature_local _AUDIOLINK_ON
             #pragma shader_feature_local _DISSOLVE_ON
             #pragma shader_feature_local _RAMP_ON
+            #pragma shader_feature_local _GRADIENT_ON
             #pragma shader_feature_local _ALPHATEST_ON
             #pragma shader_feature_local _ALPHAPREMULTIPLY_ON
             #pragma shader_feature_local _SPECULARHIGHLIGHTS_OFF

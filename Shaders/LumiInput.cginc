@@ -17,6 +17,13 @@ float     _Saturation;
 float     _Brightness;
 float     _Warmth;              // -1 cool .. +1 sun-kissed warm
 
+// ---- Gradient skin tint (dual-tone body gradient) ----
+float4    _GradientColorA;       // HDR (lower / facing)
+float4    _GradientColorB;       // HDR (upper / grazing)
+float     _GradientScale;
+float     _GradientOffset;
+float     _GradientMode;         // 0 = vertical (object Y), 1 = fresnel
+
 // ---- Blush / flush (rosy makeup tint) ----
 sampler2D _BlushMask;
 float4    _BlushColor;
