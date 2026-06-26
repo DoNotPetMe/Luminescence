@@ -154,6 +154,40 @@ float     _MaxBrightness;       // ceiling to tame over-bright worlds
 float     _ShadowBoost;         // lift shadowed regions
 float     _LightingDirectional; // 0 = flat ambient, 1 = full directional response
 
+// ---- AudioLink (global texture broadcast by the AudioLink system) ----
+sampler2D _AudioTexture;
+float4    _AudioTexture_TexelSize;
+float     _AudioLinkEmission;   // 0 = off, 1..4 = band (bass/low/high/treble)
+float     _AudioLinkGlow;
+float     _AudioLinkRim;
+float     _AudioLinkGlitter;
+float     _AudioLinkPunch;      // how hard the beat hits (1..3)
+
+// ---- Dissolve (animatable reveal with a glowing edge) ----
+sampler2D _DissolveNoise;
+float     _DissolveAmount;      // 0 = solid, 1 = fully gone
+float     _DissolveScale;
+float     _DissolveEdgeWidth;
+float     _DissolveTexInfluence;
+float4    _DissolveEdgeColor;   // HDR
+float     _DissolveAudio;       // band selector to drive the amount
+
+// ---- Proximity glow (lights up as a viewer approaches) ----
+float4    _ProximityColor;      // HDR
+float     _ProximityNear;
+float     _ProximityFar;
+float     _ProximityStrength;
+float     _ProximityPower;
+
+// ---- Toon ramp (optional cel diffuse) ----
+float4    _ShadowColor;
+float     _RampSteps;
+float     _RampHardness;        // 0 = smooth PBR, 1 = hard cel
+float     _RampShadowSoftness;
+
+// ---- Specular tint ----
+float4    _SpecularColor;
+
 // ---- Final colour grading ----
 float     _Contrast;
 float     _Vibrance;
@@ -164,5 +198,35 @@ float     _Exposure;
 // ---- Vertex distortion (subtle breathing / pulse) ----
 float     _PulseSpeed;
 float     _PulseAmount;
+
+// ---- Shared procedural noise (used by sweat, dissolve, glitter) ----
+float LumiHash21(float2 p)
+{
+    p = frac(p * float2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return frac(p.x * p.y);
+}
+
+float LumiVNoise(float2 p)
+{
+    float2 i = floor(p);
+    float2 f = frac(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = LumiHash21(i);
+    float b = LumiHash21(i + float2(1, 0));
+    float c = LumiHash21(i + float2(0, 1));
+    float d = LumiHash21(i + float2(1, 1));
+    return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
+}
+
+// Procedural dissolve field (fbm + optional texture), shared by all passes so
+// the lit pass and the shadow caster clip identically.
+float LumiDissolveField(float2 uv)
+{
+    float2 duv = uv * _DissolveScale;
+    float fbm = LumiVNoise(duv) * 0.6 + LumiVNoise(duv * 2.3 + 5.1) * 0.3 + LumiVNoise(duv * 5.7 + 11.0) * 0.1;
+    float texN = tex2D(_DissolveNoise, duv).r;
+    return saturate(lerp(fbm, fbm * 0.5 + texN * 0.5, _DissolveTexInfluence));
+}
 
 #endif // LUMINESCENCE_INPUT_INCLUDED

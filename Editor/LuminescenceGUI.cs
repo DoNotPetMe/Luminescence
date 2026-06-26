@@ -6,13 +6,15 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 
 public class LuminescenceGUI : ShaderGUI
 {
-    private const string Version = "1.3";
+    private const string Version = "1.4";
 
     // property name -> keyword managed by its [Toggle()] drawer.
     private static readonly Dictionary<string, string> Keywords = new Dictionary<string, string>
@@ -22,6 +24,10 @@ public class LuminescenceGUI : ShaderGUI
         { "_GlitterToggle",    "_GLITTER_ON" },
         { "_HoloToggle",       "_HOLO_ON" },
         { "_InnerGlowToggle",  "_INNERGLOW_ON" },
+        { "_AudioLinkToggle",  "_AUDIOLINK_ON" },
+        { "_DissolveToggle",   "_DISSOLVE_ON" },
+        { "_ProximityToggle",  "_PROXIMITY_ON" },
+        { "_RampToggle",       "_RAMP_ON" },
         { "_NormalToggle",     "_NORMALMAP" },
         { "_DetailToggle",     "_DETAIL_MAP" },
         { "_MetalToggle",      "_METALLICGLOSSMAP" },
@@ -61,6 +67,7 @@ public class LuminescenceGUI : ShaderGUI
         InitStyles();
 
         Banner();
+        Toolbar();
         ImportPanel();
         PresetBar();
 
@@ -116,6 +123,7 @@ public class LuminescenceGUI : ShaderGUI
             }
             P("_Metallic");
             P("_Glossiness", "Smoothness — higher = sharper, wetter reflections.");
+            P("_SpecularColor", "Tint the specular highlight (try warm gold for sexy skin).");
             P("_SpecularTint", "Tint specular by albedo for stylised metals.");
             Space();
             P("_OcclToggle");
@@ -265,6 +273,49 @@ public class LuminescenceGUI : ShaderGUI
             P("_TonemapToggle", "Filmic ACES roll-off for rich HDR highlights.");
         });
 
+        Section("AudioLink — React to Music", "_AudioLinkToggle", () =>
+        {
+            EditorGUILayout.LabelField("Works in any world running AudioLink. Pick which band drives each effect.",
+                EditorStyles.wordWrappedMiniLabel);
+            P("_AudioLinkPunch", "How hard the beat hits.");
+            P("_AudioLinkEmission");
+            P("_AudioLinkGlow");
+            P("_AudioLinkRim");
+            P("_AudioLinkGlitter");
+        });
+
+        Section("Dissolve", "_DissolveToggle", () =>
+        {
+            P("_DissolveAmount", "Animate this 0→1 for a reveal/vanish toggle.");
+            P("_DissolveEdgeColor", "Glowing edge colour (HDR).");
+            P("_DissolveEdgeWidth");
+            P("_DissolveScale", "Pattern size.");
+            Tex("_DissolveNoise", "Noise (optional)");
+            P("_DissolveTexInfluence", "Blend the texture into the procedural pattern.");
+            P("_DissolveAudio", "Drive the dissolve from a music band.");
+        });
+
+        Section("Proximity Glow", "_ProximityToggle", () =>
+        {
+            EditorGUILayout.LabelField("Blooms as a viewer moves closer — they light you up when they approach.",
+                EditorStyles.wordWrappedMiniLabel);
+            P("_ProximityColor");
+            P("_ProximityNear", "Distance (m) where the glow is full.");
+            P("_ProximityFar", "Distance (m) where the glow fades out.");
+            P("_ProximityStrength");
+            P("_ProximityPower", "Falloff shape.");
+        });
+
+        Section("Toon Ramp", "_RampToggle", () =>
+        {
+            EditorGUILayout.LabelField("Cel-style diffuse for anime looks; blends with PBR.",
+                EditorStyles.wordWrappedMiniLabel);
+            P("_ShadowColor", "Tint of the shadowed side.");
+            P("_RampSteps", "Number of light bands.");
+            P("_RampHardness", "0 = smooth, 1 = hard cel.");
+            P("_RampShadowSoftness");
+        });
+
         Section("Lighting", null, () =>
         {
             P("_LightingDirectional", "1 = full PBR, 0 = flat anime-style.");
@@ -300,6 +351,132 @@ public class LuminescenceGUI : ShaderGUI
         _editor.RenderQueueField();
         _editor.EnableInstancingField();
         _editor.DoubleSidedGIField();
+    }
+
+    // ===================== Quality-of-life toolbar =====================
+
+    private void Toolbar()
+    {
+        Material mat = (Material)_editor.target;
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button(new GUIContent("Copy Look",
+                "Copy every setting to the clipboard as shareable text."), EditorStyles.miniButtonLeft))
+            CopyLook(mat);
+        using (new EditorGUI.DisabledScope(!ClipboardHasLook()))
+            if (GUILayout.Button(new GUIContent("Paste Look",
+                    "Apply a Luminescence look from the clipboard."), EditorStyles.miniButtonMid))
+                Apply(PasteLook);
+        if (GUILayout.Button(new GUIContent("🎲 Random",
+                "Roll a random gorgeous look."), EditorStyles.miniButtonMid))
+            Apply(RandomLook);
+        if (GUILayout.Button(new GUIContent(AnyExpanded() ? "Collapse" : "Expand",
+                "Collapse or expand every section."), EditorStyles.miniButtonRight))
+            SetAllFoldouts(!AnyExpanded());
+        EditorGUILayout.EndHorizontal();
+
+        PerfHint(mat);
+        EditorGUILayout.Space(2);
+    }
+
+    private void PerfHint(Material m)
+    {
+        int kw = m.shaderKeywords.Length;
+        string rank = kw <= 10 ? "Light" : kw <= 18 ? "Moderate" : "Heavy";
+        Color col = kw <= 10 ? new Color(0.5f, 0.85f, 0.5f)
+                  : kw <= 18 ? new Color(0.9f, 0.8f, 0.4f)
+                             : new Color(0.95f, 0.45f, 0.45f);
+        var st = new GUIStyle(EditorStyles.miniLabel);
+        st.normal.textColor = col;
+        EditorGUILayout.LabelField($"Active features: {kw} keywords · {rank} — turn off sections you don't use for best performance.", st);
+    }
+
+    private static string F(float v) => v.ToString("R", CultureInfo.InvariantCulture);
+    private static float PF(string s) { float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var v); return v; }
+
+    private void CopyLook(Material m)
+    {
+        var sb = new StringBuilder("LUMI1;");
+        Shader sh = m.shader;
+        int count = ShaderUtil.GetPropertyCount(sh);
+        for (int i = 0; i < count; i++)
+        {
+            string name = ShaderUtil.GetPropertyName(sh, i);
+            switch (ShaderUtil.GetPropertyType(sh, i))
+            {
+                case ShaderUtil.ShaderPropertyType.Float:
+                case ShaderUtil.ShaderPropertyType.Range:
+                    sb.Append(name).Append("=f:").Append(F(m.GetFloat(name))).Append(';');
+                    break;
+                case ShaderUtil.ShaderPropertyType.Color:
+                    Color c = m.GetColor(name);
+                    sb.Append(name).Append("=c:").Append(F(c.r)).Append(',').Append(F(c.g))
+                      .Append(',').Append(F(c.b)).Append(',').Append(F(c.a)).Append(';');
+                    break;
+                case ShaderUtil.ShaderPropertyType.Vector:
+                    Vector4 v = m.GetVector(name);
+                    sb.Append(name).Append("=v:").Append(F(v.x)).Append(',').Append(F(v.y))
+                      .Append(',').Append(F(v.z)).Append(',').Append(F(v.w)).Append(';');
+                    break;
+            }
+        }
+        foreach (var kw in m.shaderKeywords) sb.Append('#').Append(kw).Append(';');
+        GUIUtility.systemCopyBuffer = sb.ToString();
+        Debug.Log("[Luminescence] Look copied to clipboard.");
+    }
+
+    private static bool ClipboardHasLook()
+    {
+        string s = GUIUtility.systemCopyBuffer;
+        return !string.IsNullOrEmpty(s) && s.StartsWith("LUMI1;");
+    }
+
+    private void PasteLook(Material m)
+    {
+        string s = GUIUtility.systemCopyBuffer;
+        if (string.IsNullOrEmpty(s) || !s.StartsWith("LUMI1;")) return;
+        Undo.RecordObject(m, "Paste Luminescence Look");
+
+        foreach (var kw in m.shaderKeywords) m.DisableKeyword(kw);
+
+        string[] tokens = s.Substring(6).Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (string t in tokens)
+        {
+            if (t[0] == '#') { m.EnableKeyword(t.Substring(1)); continue; }
+            int eq = t.IndexOf('=');
+            if (eq < 1) continue;
+            string name = t.Substring(0, eq);
+            string val = t.Substring(eq + 1);
+            if (!m.HasProperty(name) || val.Length < 2) continue;
+            string body = val.Substring(2);
+            if (val[0] == 'f') m.SetFloat(name, PF(body));
+            else if (val[0] == 'c') { var p = body.Split(','); if (p.Length == 4) m.SetColor(name, new Color(PF(p[0]), PF(p[1]), PF(p[2]), PF(p[3]))); }
+            else if (val[0] == 'v') { var p = body.Split(','); if (p.Length == 4) m.SetVector(name, new Vector4(PF(p[0]), PF(p[1]), PF(p[2]), PF(p[3]))); }
+        }
+        EditorUtility.SetDirty(m);
+    }
+
+    private void RandomLook(Material m)
+    {
+        Action<Material>[] looks =
+        {
+            PresetGlossy, PresetOiled, PresetLatex, PresetSweat, PresetShimmer, PresetBlushed,
+            PresetIridescent, PresetGalaxy, PresetHolographic, PresetSuccubus, PresetGoddess,
+            PresetChrome, PresetHoney
+        };
+        looks[UnityEngine.Random.Range(0, looks.Length)](m);
+    }
+
+    private static bool AnyExpanded()
+    {
+        foreach (var v in Foldouts.Values) if (v) return true;
+        return false;
+    }
+
+    private static void SetAllFoldouts(bool open)
+    {
+        var keys = new List<string>(Foldouts.Keys);
+        foreach (var k in keys) Foldouts[k] = open;
     }
 
     // ===================== Import / migrate from another shader =====================
@@ -470,7 +647,8 @@ public class LuminescenceGUI : ShaderGUI
         "_EmissionToggle", "_SheenToggle", "_ClearCoatToggle", "_AnisoToggle",
         "_IridToggle", "_WetnessToggle", "_SweatToggle", "_RimToggle",
         "_SSSToggle", "_TonemapToggle", "_ParallaxToggle", "_BlushToggle",
-        "_GlitterToggle", "_HoloToggle", "_InnerGlowToggle"
+        "_GlitterToggle", "_HoloToggle", "_InnerGlowToggle", "_AudioLinkToggle",
+        "_DissolveToggle", "_ProximityToggle", "_RampToggle"
     };
 
     private void PresetBar()
@@ -506,6 +684,15 @@ public class LuminescenceGUI : ShaderGUI
         if (Chip("🩸 Liquid Chrome")) Apply(PresetChrome);
         if (Chip("🍯 Honey"))       Apply(PresetHoney);
         EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.Space(3);
+        EditorGUILayout.LabelField("🎶  Reactive & Stylised", EditorStyles.miniBoldLabel);
+        EditorGUILayout.BeginHorizontal();
+        if (Chip("🎵 Club"))        Apply(PresetClub);
+        if (Chip("✨ Reveal"))      Apply(PresetReveal);
+        if (Chip("💖 Allure"))      Apply(PresetAllure);
+        if (Chip("🌸 Anime"))       Apply(PresetAnime);
+        EditorGUILayout.EndHorizontal();
         EditorGUILayout.EndVertical();
         EditorGUILayout.Space(2);
     }
@@ -525,6 +712,11 @@ public class LuminescenceGUI : ShaderGUI
         SetF(m, "_FresnelGlowStrength", 0f);
         SetF(m, "_ReflectionStrength", 1f); SetF(m, "_ReflectionFresnel", 1f);
         SetC(m, "_ReflectionTint", Color.white);
+        SetC(m, "_SpecularColor", Color.white);
+        SetF(m, "_LightingDirectional", 1f);
+        SetF(m, "_DissolveAmount", 0f);
+        SetF(m, "_AudioLinkEmission", 0f); SetF(m, "_AudioLinkGlow", 0f);
+        SetF(m, "_AudioLinkRim", 0f); SetF(m, "_AudioLinkGlitter", 0f); SetF(m, "_DissolveAudio", 0f);
         SetF(m, "_Exposure", 1f); SetF(m, "_Contrast", 1f);
         SetF(m, "_FinalSaturation", 1f); SetF(m, "_Vibrance", 0f); SetF(m, "_HueShift", 0f);
     }
@@ -817,6 +1009,90 @@ public class LuminescenceGUI : ShaderGUI
         SetC(m, "_SheenColor", new Color(1.6f, 1.0f, 0.4f, 1f)); SetF(m, "_SheenIntensity", 1.1f);
         Enable(m, "_TonemapToggle");
         SetF(m, "_Contrast", 1.12f); SetF(m, "_Vibrance", 0.5f);
+    }
+
+    // ===================== Reactive & stylised presets =====================
+
+    // Music-reactive club skin: glossy dark body whose glow, glitter and rim
+    // pulse to the beat. (Switch on in any AudioLink world.)
+    private void PresetClub(Material m)
+    {
+        ResetLook(m);
+        SetC(m, "_Color", new Color(0.06f, 0.05f, 0.09f, 1f));
+        SetF(m, "_Metallic", 0.55f); SetF(m, "_Glossiness", 0.9f);
+        SetF(m, "_ReflectionStrength", 1.4f);
+        Enable(m, "_ClearCoatToggle"); SetF(m, "_ClearCoat", 1f); SetF(m, "_ClearCoatSmoothness", 0.95f);
+        Enable(m, "_InnerGlowToggle");
+        SetC(m, "_InnerGlowColor", new Color(0.4f, 1.6f, 2.2f, 1f));
+        SetF(m, "_InnerGlowStrength", 0.8f); SetF(m, "_InnerGlowPower", 3f);
+        SetF(m, "_InnerGlowPulse", 2f); SetF(m, "_InnerGlowPulseMin", 0.4f);
+        Enable(m, "_GlitterToggle");
+        SetC(m, "_GlitterColor", new Color(1.4f, 1.2f, 1.8f, 1f));
+        SetF(m, "_GlitterIntensity", 3f); SetF(m, "_GlitterCoverage", 0.12f); SetF(m, "_GlitterDensity", 480f);
+        Enable(m, "_RimToggle");
+        SetC(m, "_RimColor", new Color(0.4f, 2.5f, 3f, 1f)); SetC(m, "_RimColor2", new Color(2.6f, 0.3f, 2.4f, 1f));
+        SetF(m, "_RimPower", 4f); SetF(m, "_RimStrength", 1.8f);
+        Enable(m, "_AudioLinkToggle");
+        SetF(m, "_AudioLinkPunch", 2.2f);
+        SetF(m, "_AudioLinkGlow", 1f);     // bass
+        SetF(m, "_AudioLinkRim", 2f);      // low-mid
+        SetF(m, "_AudioLinkGlitter", 4f);  // treble
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Contrast", 1.15f); SetF(m, "_Vibrance", 0.6f);
+    }
+
+    // Reveal / dissolve toggle, ready to animate. Amount stays 0 (fully visible);
+    // animate _DissolveAmount 0→1 for a glowing vanish.
+    private void PresetReveal(Material m)
+    {
+        ResetLook(m);
+        SetF(m, "_Glossiness", 0.7f);
+        Enable(m, "_SheenToggle");
+        SetC(m, "_SheenColor", new Color(0.7f, 1.1f, 1.4f, 1f)); SetF(m, "_SheenIntensity", 0.8f);
+        Enable(m, "_DissolveToggle");
+        SetF(m, "_DissolveAmount", 0f);
+        SetC(m, "_DissolveEdgeColor", new Color(0.3f, 3f, 4f, 1f));
+        SetF(m, "_DissolveEdgeWidth", 0.08f); SetF(m, "_DissolveScale", 7f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Vibrance", 0.45f);
+    }
+
+    // Allure: a warm glow that blooms only as someone steps close to you.
+    private void PresetAllure(Material m)
+    {
+        ResetLook(m);
+        SetF(m, "_Warmth", 0.2f); SetF(m, "_Glossiness", 0.62f);
+        Enable(m, "_SheenToggle");
+        SetC(m, "_SheenColor", new Color(1.3f, 0.7f, 0.8f, 1f)); SetF(m, "_SheenIntensity", 0.9f);
+        Enable(m, "_ProximityToggle");
+        SetC(m, "_ProximityColor", new Color(2.2f, 0.5f, 0.9f, 1f));
+        SetF(m, "_ProximityNear", 0.4f); SetF(m, "_ProximityFar", 2.5f);
+        SetF(m, "_ProximityStrength", 2.5f); SetF(m, "_ProximityPower", 2f);
+        Enable(m, "_BlushToggle");
+        SetC(m, "_BlushColor", new Color(1f, 0.5f, 0.55f, 1f)); SetF(m, "_BlushStrength", 0.4f);
+        Enable(m, "_SSSToggle");
+        SetC(m, "_SSSColor", new Color(1f, 0.45f, 0.4f, 1f)); SetF(m, "_SSSStrength", 0.7f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Vibrance", 0.4f);
+    }
+
+    // Anime: cel-shaded cutie — toon ramp, blush, soft sheen and a clean rim.
+    private void PresetAnime(Material m)
+    {
+        ResetLook(m);
+        SetF(m, "_Glossiness", 0.5f); SetF(m, "_LightingDirectional", 0.85f);
+        Enable(m, "_RampToggle");
+        SetC(m, "_ShadowColor", new Color(0.55f, 0.45f, 0.62f, 1f));
+        SetF(m, "_RampSteps", 2f); SetF(m, "_RampHardness", 0.85f); SetF(m, "_RampShadowSoftness", 0.12f);
+        Enable(m, "_BlushToggle");
+        SetC(m, "_BlushColor", new Color(1f, 0.5f, 0.55f, 1f)); SetF(m, "_BlushStrength", 0.5f); SetF(m, "_BlushFresnel", 0.4f);
+        Enable(m, "_SheenToggle");
+        SetC(m, "_SheenColor", new Color(1f, 0.85f, 0.9f, 1f)); SetF(m, "_SheenIntensity", 0.6f);
+        Enable(m, "_RimToggle");
+        SetC(m, "_RimColor", new Color(1.6f, 1.5f, 1.8f, 1f)); SetC(m, "_RimColor2", new Color(1.8f, 1.4f, 1.6f, 1f));
+        SetF(m, "_RimPower", 6f); SetF(m, "_RimStrength", 1.2f);
+        Enable(m, "_TonemapToggle");
+        SetF(m, "_Contrast", 1.05f); SetF(m, "_Vibrance", 0.4f);
     }
 
     // ===================== Blend presets =====================

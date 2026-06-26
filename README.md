@@ -33,8 +33,12 @@ surfaces, animated sweat, rim glow and more.
 | **Matcap** | Camera-space fake reflection (additive or multiply) — cheap extra shine. |
 | **Subsurface** | Thickness-mapped translucency for skin / latex glow-through. |
 | **Lighting safety** | Min/Max brightness clamps and shadow lift so the avatar reads well in dark *and* over-bright worlds; vertex lights + additive realtime lights + shadows. |
+| **AudioLink** 🎵 | React to the world's music: route **bass / low-mid / high-mid / treble** independently to emission, inner glow, rim and glitter. Auto-detects AudioLink and falls back gracefully when it isn't present. |
+| **Dissolve** ✨ | Animatable reveal/vanish with a glowing HDR edge — procedural (no texture needed), optional texture influence, can be driven by the beat. Clips shadows too. |
+| **Proximity Glow** 💖 | Blooms as a viewer moves closer — the avatar literally lights up for whoever approaches you. |
+| **Toon Ramp** 🌸 | Optional cel-shaded diffuse with shadow tint and adjustable steps, blendable with the PBR base for anime looks. |
 | **Color grading** ✨ | Final-stage exposure, contrast, saturation, smart vibrance, hue shift and an optional **ACES filmic tonemap** for a rich, cinematic roll-off. |
-| **Quality of life** | Compact styled inspector with inline section toggles, tooltips, **one-click look presets**, transparency presets, GPU instancing, alpha cutout, gentle vertex "breathing". |
+| **Quality of life** | Compact styled inspector with inline section toggles, tooltips, **one-click look presets**, **Copy/Paste Look as text** (share looks with friends), **Random** look, **Import from other shaders** (Poiyomi/lilToon/Standard/URP), collapse/expand all, a live **performance/keyword meter**, transparency presets, GPU instancing. |
 
 ---
 
@@ -107,6 +111,21 @@ The show-stoppers — designed to turn heads across the whole instance:
 > lives in what they reflect.
 - **🩸 Liquid Chrome** — a flawless mirror-metal body that drinks in the world.
 - **🍯 Honey** — warm molten-gold metal, slick and glistening like dripping honey.
+
+### 🎶 Reactive & stylised looks
+
+- **🎵 Club** — glossy dark skin whose glow, glitter and rim **pulse to the music**
+  (AudioLink). The life of the dance floor.
+- **✨ Reveal** — a dissolve toggle ready to animate: drive `Dissolve Amount`
+  0→1 for a glowing vanish/return.
+- **💖 Allure** — a warm glow that blooms only as someone steps close to you.
+- **🌸 Anime** — cel-shaded cutie: toon ramp, blush, soft sheen and a clean rim.
+
+> **Toolbar tips:** *Copy Look* / *Paste Look* share a complete look as text —
+> paste it onto another material or send it to a friend. *Random* rolls a
+> gorgeous look instantly. The keyword meter under the toolbar shows how heavy
+> the current material is — switch off sections you don't use to keep your
+> avatar performant.
 
 Each preset is a starting point — tweak from there with the full controls.
 

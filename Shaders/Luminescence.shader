@@ -51,6 +51,7 @@ Shader "Luminescence/Avatar"
         _Glossiness         ("Smoothness", Range(0,1)) = 0.5
         _GlossMapScale      ("Smoothness (map) Scale", Range(0,1)) = 1
         _SpecularTint       ("Specular Tint by Albedo", Range(0,1)) = 0
+        [HDR] _SpecularColor("Specular Highlight Color", Color) = (1,1,1,1)
         [Toggle(_OCCLUSIONMAP)] _OcclToggle ("Enable Occlusion", Float) = 0
         _OcclusionMap       ("Occlusion (G)", 2D) = "white" {}
         _OcclusionStrength  ("Occlusion Strength", Range(0,1)) = 1
@@ -167,6 +168,39 @@ Shader "Luminescence/Avatar"
         _SSSPower           ("SSS Falloff", Range(0.1,16)) = 4
         _SSSScale           ("SSS Distortion", Range(0,1)) = 0.5
 
+        [Header(AudioLink Reactive)]
+        [Toggle(_AUDIOLINK_ON)] _AudioLinkToggle ("Enable AudioLink", Float) = 0
+        _AudioLinkPunch     ("Beat Punch", Range(1,3)) = 1.7
+        [Enum(Off,0,Bass,1,Low Mid,2,High Mid,3,Treble,4)] _AudioLinkEmission ("Emission reacts to", Float) = 0
+        [Enum(Off,0,Bass,1,Low Mid,2,High Mid,3,Treble,4)] _AudioLinkGlow ("Inner Glow reacts to", Float) = 0
+        [Enum(Off,0,Bass,1,Low Mid,2,High Mid,3,Treble,4)] _AudioLinkRim ("Rim reacts to", Float) = 0
+        [Enum(Off,0,Bass,1,Low Mid,2,High Mid,3,Treble,4)] _AudioLinkGlitter ("Glitter reacts to", Float) = 0
+
+        [Header(Dissolve)]
+        [Toggle(_DISSOLVE_ON)] _DissolveToggle ("Enable Dissolve", Float) = 0
+        _DissolveAmount     ("Dissolve Amount", Range(0,1)) = 0
+        _DissolveScale      ("Pattern Scale", Range(0.1,32)) = 6
+        _DissolveEdgeWidth  ("Edge Width", Range(0.001,0.5)) = 0.06
+        [HDR] _DissolveEdgeColor ("Edge Glow Color", Color) = (4,0.6,0.1,1)
+        _DissolveNoise      ("Noise Texture (optional)", 2D) = "black" {}
+        _DissolveTexInfluence ("Texture Influence", Range(0,1)) = 0
+        [Enum(Off,0,Bass,1,Low Mid,2,High Mid,3,Treble,4)] _DissolveAudio ("Amount reacts to", Float) = 0
+
+        [Header(Proximity Glow)]
+        [Toggle(_PROXIMITY_ON)] _ProximityToggle ("Enable Proximity Glow", Float) = 0
+        [HDR] _ProximityColor ("Proximity Color", Color) = (1,0.3,0.5,1)
+        _ProximityNear      ("Near (full glow) m", Range(0,5)) = 0.4
+        _ProximityFar       ("Far (no glow) m", Range(0,10)) = 2.5
+        _ProximityStrength  ("Proximity Strength", Range(0,8)) = 2
+        _ProximityPower     ("Proximity Falloff", Range(0.1,8)) = 2
+
+        [Header(Toon Ramp)]
+        [Toggle(_RAMP_ON)] _RampToggle ("Enable Toon Ramp", Float) = 0
+        _ShadowColor        ("Shadow Tint", Color) = (0.5,0.4,0.55,1)
+        _RampSteps          ("Ramp Steps", Range(1,8)) = 2
+        _RampHardness       ("Cel Hardness", Range(0,1)) = 0.8
+        _RampShadowSoftness ("Shadow Softness", Range(0.01,1)) = 0.15
+
         [Header(Color Grading)]
         _Exposure           ("Exposure", Range(0,4)) = 1
         _Contrast           ("Contrast", Range(0,2)) = 1
@@ -241,6 +275,10 @@ Shader "Luminescence/Avatar"
             #pragma shader_feature_local _GLITTER_ON
             #pragma shader_feature_local _HOLO_ON
             #pragma shader_feature_local _INNERGLOW_ON
+            #pragma shader_feature_local _AUDIOLINK_ON
+            #pragma shader_feature_local _DISSOLVE_ON
+            #pragma shader_feature_local _PROXIMITY_ON
+            #pragma shader_feature_local _RAMP_ON
             #pragma shader_feature_local _TONEMAP_ON
             #pragma shader_feature_local _ALPHATEST_ON
             #pragma shader_feature_local _ALPHAPREMULTIPLY_ON
@@ -285,6 +323,9 @@ Shader "Luminescence/Avatar"
             #pragma shader_feature_local _ANISOTROPY_ON
             #pragma shader_feature_local _PARALLAX_ON
             #pragma shader_feature_local _BLUSH_ON
+            #pragma shader_feature_local _AUDIOLINK_ON
+            #pragma shader_feature_local _DISSOLVE_ON
+            #pragma shader_feature_local _RAMP_ON
             #pragma shader_feature_local _ALPHATEST_ON
             #pragma shader_feature_local _ALPHAPREMULTIPLY_ON
             #pragma shader_feature_local _SPECULARHIGHLIGHTS_OFF
@@ -309,6 +350,7 @@ Shader "Luminescence/Avatar"
             #pragma multi_compile_shadowcaster
             #pragma multi_compile_instancing
             #pragma shader_feature_local _ALPHATEST_ON
+            #pragma shader_feature_local _DISSOLVE_ON
 
             #include "UnityCG.cginc"
             #include "LumiInput.cginc"
@@ -343,6 +385,9 @@ Shader "Luminescence/Avatar"
             #if defined(_ALPHATEST_ON)
                 float a = tex2D(_MainTex, i.uv).a * _Color.a;
                 clip(a - _Cutoff);
+            #endif
+            #if defined(_DISSOLVE_ON)
+                clip(LumiDissolveField(i.uv) - saturate(_DissolveAmount));
             #endif
                 SHADOW_CASTER_FRAGMENT(i)
             }

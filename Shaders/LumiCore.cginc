@@ -209,24 +209,33 @@ float3 ColorGrade(float3 c)
     return max(c, 0.0);
 }
 
-// Cheap hash / value noise so sweat works with no texture at all.
-float Hash21(float2 p)
+// Hash21 / VNoise live in LumiInput.cginc (shared with the shadow pass) as
+// LumiHash21 / LumiVNoise.
+#define Hash21 LumiHash21
+#define VNoise LumiVNoise
+
+// Raw AudioLink band amplitude (0..~1+). band 0..3 = bass / low-mid / high-mid / treble.
+// Reads the most-recent column of the global _AudioTexture (128x64). Returns 0
+// when AudioLink isn't present in the world.
+float AudioBand(float band)
 {
-    p = frac(p * float2(123.34, 456.21));
-    p += dot(p, p + 45.32);
-    return frac(p.x * p.y);
+    if (_AudioTexture_TexelSize.z < 64.0) return 0.0; // texture is 128 wide only when AL is live
+    return tex2Dlod(_AudioTexture, float4(0.5 / 128.0, (band + 0.5) / 64.0, 0, 0)).r;
 }
 
-float VNoise(float2 p)
+// Reactive multiplier for an effect. bandSel: 0 = none (returns 1, no change);
+// 1..4 selects a band. Falls back to 1 when AudioLink is off or absent, so
+// effects never vanish outside music worlds.
+float AudioMul(float bandSel)
 {
-    float2 i = floor(p);
-    float2 f = frac(p);
-    f = f * f * (3.0 - 2.0 * f);
-    float a = Hash21(i);
-    float b = Hash21(i + float2(1, 0));
-    float c = Hash21(i + float2(0, 1));
-    float d = Hash21(i + float2(1, 1));
-    return lerp(lerp(a, b, f.x), lerp(c, d, f.x), f.y);
+    if (bandSel < 0.5) return 1.0;
+#if defined(_AUDIOLINK_ON)
+    if (_AudioTexture_TexelSize.z < 64.0) return 1.0;
+    float amp = saturate(AudioBand(bandSel - 1.0));
+    return lerp(0.18, _AudioLinkPunch, amp);
+#else
+    return 1.0;
+#endif
 }
 
 // Lub-dub heartbeat envelope (0..1) over one second.
@@ -418,7 +427,7 @@ Surface BuildSurface(v2f i, float3 geomNormal)
                        sin(_Time.y * _EmissionPulseSpeed) * 0.5 + 0.5);
     // Optional gradient: brighter where emission texture is already bright.
     float grad = lerp(1.0, dot(emTex, float3(0.3333, 0.3333, 0.3333)), _EmissionGradientStrength);
-    emission = emTex * _EmissionColor.rgb * _EmissionStrength * pulse * grad;
+    emission = emTex * _EmissionColor.rgb * _EmissionStrength * pulse * grad * AudioMul(_AudioLinkEmission);
 #endif
 
     // Fresnel emissive glow — burns the silhouette regardless of scene light.
@@ -437,7 +446,30 @@ Surface BuildSurface(v2f i, float3 geomNormal)
         float sine = sin(_Time.y * _InnerGlowPulse) * 0.5 + 0.5;
         float beat = Heartbeat(_Time.y * _InnerGlowPulse * 0.18);
         float pulse = lerp(_InnerGlowPulseMin, 1.0, lerp(sine, beat, _InnerGlowHeartbeat));
-        emission += _InnerGlowColor.rgb * edge * _InnerGlowStrength * pulse;
+        emission += _InnerGlowColor.rgb * edge * _InnerGlowStrength * pulse * AudioMul(_AudioLinkGlow);
+    }
+#endif
+
+    // ---- Proximity glow: blooms as a viewer moves closer ----
+#if defined(_PROXIMITY_ON)
+    {
+        float dist = distance(_WorldSpaceCameraPos.xyz, i.worldPos);
+        float prox = saturate(1.0 - (dist - _ProximityNear) / max(_ProximityFar - _ProximityNear, 0.01));
+        prox = pow(prox, max(_ProximityPower, 0.01));
+        emission += _ProximityColor.rgb * prox * _ProximityStrength;
+    }
+#endif
+
+    // ---- Dissolve: clip away with a glowing edge (procedural fbm) ----
+#if defined(_DISSOLVE_ON)
+    {
+        float dn = LumiDissolveField(i.uv.xy);
+        float amt = saturate(_DissolveAmount * AudioMul(_DissolveAudio));
+        float reveal = dn - amt;
+        clip(reveal);
+        float edge = saturate(1.0 - reveal / max(_DissolveEdgeWidth, 1e-3));
+        edge *= smoothstep(0.0, 0.03, amt);   // no edge glow while fully solid
+        emission += _DissolveEdgeColor.rgb * edge;
     }
 #endif
 
@@ -508,7 +540,7 @@ float3 LightingPBR(Surface s, float3 viewDir, float3 worldPos, float3 lightColor
 #if defined(_SPECULARHIGHLIGHTS_OFF)
     float3 directSpec = 0;
 #else
-    float3 directSpec = d * vis * f * ndotl;
+    float3 directSpec = d * vis * f * ndotl * _SpecularColor.rgb;
 #endif
 
     // ---- Clear coat: a second, sharp specular lobe over the base ----
@@ -524,7 +556,18 @@ float3 LightingPBR(Surface s, float3 viewDir, float3 worldPos, float3 lightColor
     directSpec *= coatAtten;
 #endif
 
+    // ---- Diffuse response: smooth PBR, or stepped cel ramp with shadow tint ----
+#if defined(_RAMP_ON)
+    float steps = max(_RampSteps, 1.0);
+    float band  = floor(saturate(ndotl) * steps + 0.5) / steps;        // hard steps
+    float soft  = smoothstep(0.0, max(_RampShadowSoftness, 1e-3), ndotl);
+    float toonL = lerp(soft, band, _RampHardness);
+    float lit   = lerp(toonL, 1.0, 1.0 - _LightingDirectional);
+    float3 shadeTint = lerp(_ShadowColor.rgb, float3(1, 1, 1), lit);
+    float3 directDiffuse = diffColor * shadeTint * coatAtten;
+#else
     float3 directDiffuse = diffColor * ndotlShaped * coatAtten;
+#endif
     float3 direct = (directDiffuse + directSpec) * lightColor * atten;
 
     // ---- Sub-surface scattering (translucency) ----
@@ -541,7 +584,7 @@ float3 LightingPBR(Surface s, float3 viewDir, float3 worldPos, float3 lightColor
     // ---- Glitter: sparse, light-reactive metallic flakes ----
 #if defined(_GLITTER_ON)
     float glint = GlitterSpec(s.uv, N, V, L, ndotl);
-    direct += glint * _GlitterColor.rgb * _GlitterIntensity * lightColor * atten;
+    direct += glint * _GlitterColor.rgb * _GlitterIntensity * AudioMul(_AudioLinkGlitter) * lightColor * atten;
 #endif
 
     // ---- Sheen, lit portion ----
@@ -610,7 +653,7 @@ float3 LightingPBR(Surface s, float3 viewDir, float3 worldPos, float3 lightColor
     float rimDir = lerp(1.0, saturate(dot(N, L)), _RimBias);
     // Vertical gradient between the two rim colours.
     float3 rimCol = lerp(_RimColor2.rgb, _RimColor.rgb, saturate(N.y * 0.5 + 0.5));
-    color += rimCol * rim * rimDir * _RimStrength * lightColor;
+    color += rimCol * rim * rimDir * _RimStrength * AudioMul(_AudioLinkRim) * lightColor;
 #endif
 
     return color;
