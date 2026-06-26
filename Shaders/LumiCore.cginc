@@ -160,6 +160,55 @@ float3 F_Schlick(float3 f0, float vdoth)
     return f0 + (1.0 - f0) * f;
 }
 
+float F_Schlick1(float f0, float f90, float vdoth)
+{
+    return f0 + (f90 - f0) * pow(1.0 - vdoth, 5.0);
+}
+
+// Anisotropic GGX normal distribution (stretched highlight).
+float D_GGX_Aniso(float ndoth, float toth, float both, float at, float ab)
+{
+    float a2 = at * ab;
+    float3 v = float3(ab * toth, at * both, a2 * ndoth);
+    float v2 = dot(v, v);
+    float w2 = a2 / max(v2, LUMI_EPS);
+    return a2 * w2 * w2 * (1.0 / LUMI_PI);
+}
+
+// Cheap thin-film / iridescence tint driven by view angle.
+float3 Iridescence(float cosAngle, float freq, float shift)
+{
+    float3 phase = float3(0.0, 0.3333, 0.6667) + shift;
+    return 0.5 + 0.5 * cos(6.28318530718 * (freq * cosAngle + phase));
+}
+
+float3 HueShift(float3 col, float angle)
+{
+    const float3 k = float3(0.57735, 0.57735, 0.57735);
+    float c = cos(angle);
+    return col * c + cross(k, col) * sin(angle) + k * dot(k, col) * (1.0 - c);
+}
+
+// ACES filmic tonemap (Narkowicz fit).
+float3 ACESFilmic(float3 x)
+{
+    return saturate((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14));
+}
+
+float3 ColorGrade(float3 c)
+{
+    c *= _Exposure;
+    // Contrast around mid-grey.
+    c = (c - 0.5) * _Contrast + 0.5;
+    // Saturation + vibrance.
+    float l = dot(max(c, 0.0), float3(0.2126, 0.7152, 0.0722));
+    c = lerp(l.xxx, c, _FinalSaturation);
+    float sat = saturate(distance(c, l.xxx));
+    c = lerp(l.xxx, c, 1.0 + _Vibrance * (1.0 - sat));
+    if (abs(_HueShift) > 1e-4) c = HueShift(c, _HueShift);
+    return max(c, 0.0);
+}
+
 // Animated sweat: two scrolling layers of the mask whose product makes
 // trickling sparkle. Returns a 0..1 sparkle factor and writes wetness.
 float SweatTerm(float2 uv, float3 worldNormal, out float wetAdd)
@@ -193,6 +242,8 @@ struct Surface
     float  occlusion;
     float3 emission;
     float3 normalWorld;
+    float3 tangentWorld;
+    float3 bitangentWorld;
     float  sweatSparkle;
     float  thickness;
 };
@@ -200,6 +251,21 @@ struct Surface
 Surface BuildSurface(v2f i, float3 geomNormal)
 {
     Surface s = (Surface)0;
+
+    float3 wTangent   = normalize(i.worldTangent);
+    float3 wBitangent = normalize(i.worldBitangent);
+
+    // ---- Parallax depth: offset UVs along tangent-space view direction ----
+#if defined(_PARALLAX_ON)
+    {
+        float3x3 tbnV = float3x3(wTangent, wBitangent, normalize(geomNormal));
+        float3 vTan = mul(tbnV, normalize(i.viewDir));
+        float h = tex2D(_ParallaxMap, i.uv.xy).g - 0.5;
+        float2 off = (vTan.xy / (vTan.z + 0.42)) * h * _Parallax * 0.1;
+        i.uv.xy += off;
+        i.uv.zw += off;
+    }
+#endif
 
     // ---- Albedo ----
     float4 baseTex = tex2D(_MainTex, i.uv.xy);
@@ -275,12 +341,21 @@ Surface BuildSurface(v2f i, float3 geomNormal)
     emission = emTex * _EmissionColor.rgb * _EmissionStrength * pulse * grad;
 #endif
 
+    // Fresnel emissive glow — burns the silhouette regardless of scene light.
+    {
+        float ndv = saturate(dot(n, normalize(i.viewDir)));
+        float fres = pow(1.0 - ndv, max(_FresnelGlowPower, 0.01));
+        emission += _FresnelGlowColor.rgb * fres * _FresnelGlowStrength;
+    }
+
     s.albedo      = saturate(albedo);
     s.metallic    = saturate(metallic);
     s.smoothness  = saturate(smoothness);
     s.occlusion   = occlusion;
     s.emission    = emission;
     s.normalWorld = n;
+    s.tangentWorld   = wTangent;
+    s.bitangentWorld = wBitangent;
     s.thickness   = 1.0;
 #if defined(_SSS_ON)
     s.thickness   = tex2D(_ThicknessMap, i.uv.xy).r;
@@ -315,16 +390,41 @@ float3 LightingPBR(Surface s, float3 viewDir, float3 worldPos, float3 lightColor
 
     float ndotlShaped = lerp(ndotl, 1.0, (1.0 - _LightingDirectional));
 
-    float d  = D_GGX(ndoth, roughness);
     float vis = V_SmithGGX(ndotl, ndotv, roughness);
     float3 f  = F_Schlick(specColor, vdoth);
+
+#if defined(_ANISOTROPY_ON)
+    // Rotate the tangent frame and stretch the highlight.
+    float ca = cos(_AnisoAngle), sa = sin(_AnisoAngle);
+    float3 T = normalize(s.tangentWorld * ca + s.bitangentWorld * sa);
+    float3 B = normalize(cross(N, T));
+    float at = max(roughness * (1.0 + _Anisotropy), 2e-3);
+    float ab = max(roughness * (1.0 - _Anisotropy), 2e-3);
+    float d  = D_GGX_Aniso(ndoth, dot(T, H), dot(B, H), at, ab);
+#else
+    float d  = D_GGX(ndoth, roughness);
+#endif
+
 #if defined(_SPECULARHIGHLIGHTS_OFF)
     float3 directSpec = 0;
 #else
     float3 directSpec = d * vis * f * ndotl;
 #endif
 
-    float3 directDiffuse = diffColor * ndotlShaped;
+    // ---- Clear coat: a second, sharp specular lobe over the base ----
+    float coatAtten = 1.0;
+#if defined(_CLEARCOAT_ON)
+    float coatRough = max((1.0 - _ClearCoatSmoothness) * (1.0 - _ClearCoatSmoothness), 2e-3);
+    float coatD = D_GGX(ndoth, coatRough);
+    float coatV = V_SmithGGX(ndotl, ndotv, coatRough);
+    float coatF = F_Schlick1(0.04, 1.0, vdoth) * _ClearCoat;
+    directSpec += coatD * coatV * coatF * ndotl * _ClearCoatColor.rgb;
+    // Energy: everything beneath the coat dims a touch.
+    coatAtten = (1.0 - coatF * 0.5);
+    directSpec *= coatAtten;
+#endif
+
+    float3 directDiffuse = diffColor * ndotlShaped * coatAtten;
     float3 direct = (directDiffuse + directSpec) * lightColor * atten;
 
     // ---- Sub-surface scattering (translucency) ----
@@ -352,7 +452,21 @@ float3 LightingPBR(Surface s, float3 viewDir, float3 worldPos, float3 lightColor
     float fresnel = pow(1.0 - ndotv, 5.0) * _ReflectionFresnel;
     float3 envF = lerp(specColor, grazing.xxx, fresnel);
     float specOcc = lerp(1.0, s.occlusion, _SpecularOcclusion);
-    indirect += env * envF * _ReflectionStrength * _ReflectionTint.rgb * specOcc;
+
+    // Iridescent thin-film tint shifts the reflection colour by view angle.
+#if defined(_IRIDESCENCE_ON)
+    float3 iri = Iridescence(ndotv, _IridescenceFreq, _IridescenceShift);
+    envF *= lerp(float3(1, 1, 1), iri, _Iridescence);
+#endif
+
+    indirect += env * envF * _ReflectionStrength * _ReflectionTint.rgb * specOcc * coatAtten;
+
+    // Clear-coat picks up its own sharp environment reflection.
+#if defined(_CLEARCOAT_ON)
+    float3 envCoat = SampleSceneReflection(reflDir, worldPos, 1.0 - _ClearCoatSmoothness);
+    float coatFr = F_Schlick1(0.04, 1.0, ndotv) * _ClearCoat;
+    indirect += envCoat * coatFr * _ClearCoatColor.rgb;
+#endif
 #endif
 
     float3 color = direct + indirect + vertexLight * diffColor;
@@ -422,6 +536,14 @@ float4 fragForward(v2f i) : SV_Target
     float lum = dot(color, float3(0.2126, 0.7152, 0.0722));
     float targetLum = clamp(lum, _MinBrightness, _MaxBrightness);
     color *= (lum > LUMI_EPS) ? (targetLum / lum) : 1.0;
+
+    // Final colour grade (exposure / contrast / vibrance / hue).
+    color = ColorGrade(color);
+
+    // Filmic tonemap tames HDR highlights into a rich, premium roll-off.
+#if defined(_TONEMAP_ON)
+    color = ACESFilmic(color);
+#endif
 #endif
 
     float4 outCol = float4(color, s.alpha);

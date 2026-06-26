@@ -1,7 +1,7 @@
 // =====================================================================
-//  LuminescenceGUI - organised inspector for the Luminescence shader.
-//  Groups the (many) options into collapsible sections and keeps the
-//  toggle keywords / render state in sync.
+//  LuminescenceGUI - a compact, modern inspector for the Luminescence
+//  shader: styled collapsible bars with inline enable toggles, tooltips
+//  and one-click look presets.
 // =====================================================================
 #if UNITY_EDITOR
 using System;
@@ -12,270 +12,456 @@ using UnityEngine.Rendering;
 
 public class LuminescenceGUI : ShaderGUI
 {
+    private const string Version = "1.1";
+
+    // property name -> keyword managed by its [Toggle()] drawer.
+    private static readonly Dictionary<string, string> Keywords = new Dictionary<string, string>
+    {
+        { "_AlphaTest",        "_ALPHATEST_ON" },
+        { "_NormalToggle",     "_NORMALMAP" },
+        { "_DetailToggle",     "_DETAIL_MAP" },
+        { "_MetalToggle",      "_METALLICGLOSSMAP" },
+        { "_OcclToggle",       "_OCCLUSIONMAP" },
+        { "_NoReflections",    "_GLOSSYREFLECTIONS_OFF" },
+        { "_NoSpecHi",         "_SPECULARHIGHLIGHTS_OFF" },
+        { "_ClearCoatToggle",  "_CLEARCOAT_ON" },
+        { "_AnisoToggle",      "_ANISOTROPY_ON" },
+        { "_IridToggle",       "_IRIDESCENCE_ON" },
+        { "_ParallaxToggle",   "_PARALLAX_ON" },
+        { "_EmissionToggle",   "_EMISSION" },
+        { "_WetnessToggle",    "_WETNESS_ON" },
+        { "_SweatToggle",      "_SWEAT_ON" },
+        { "_RimToggle",        "_RIM_ON" },
+        { "_MatcapToggle",     "_MATCAP_ON" },
+        { "_SSSToggle",        "_SSS_ON" },
+        { "_TonemapToggle",    "_TONEMAP_ON" },
+        { "_Premultiply",      "_ALPHAPREMULTIPLY_ON" },
+    };
+
     private static readonly Dictionary<string, bool> Foldouts = new Dictionary<string, bool>();
 
     private MaterialEditor _editor;
     private MaterialProperty[] _props;
+    private static GUIStyle _foldLabel, _title, _sub, _chip;
+    private static bool _stylesReady;
+
+    private static readonly Color BarOn  = new Color(0.27f, 0.22f, 0.34f, 1f);
+    private static readonly Color BarOff = new Color(0.17f, 0.17f, 0.19f, 1f);
+    private static readonly Color Accent = new Color(0.85f, 0.30f, 0.45f, 1f);
 
     public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] properties)
     {
         _editor = materialEditor;
         _props = properties;
-        Material mat = materialEditor.target as Material;
+        InitStyles();
 
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("✦ Luminescence", EditorStyles.boldLabel);
-        EditorGUILayout.LabelField("PBR avatar shader · reflections · wetness · sweat · glow",
-            EditorStyles.miniLabel);
-        EditorGUILayout.Space();
+        Banner();
+        PresetBar();
 
-        Section("Base", () =>
+        Section("Base", null, () =>
         {
-            TexProp("_MainTex", "Albedo", "_Color");
-            Prop("_Saturation");
-            Prop("_Brightness");
-            Prop("_AlphaTest");
-            if (GetFloat("_AlphaTest") > 0.5f) Prop("_Cutoff");
+            Tex("_MainTex", "Albedo", "_Color", "Main colour / opacity map.");
+            P("_Saturation", "Albedo saturation.");
+            P("_Brightness", "Albedo multiplier.");
+            P("_AlphaTest", "Hard alpha cutout.");
+            if (On("_AlphaTest")) P("_Cutoff");
         });
 
-        Section("Normal & Detail", () =>
+        Section("Normal & Detail", "_NormalToggle", () =>
         {
-            Prop("_NormalToggle");
-            if (GetFloat("_NormalToggle") > 0.5f)
+            Tex("_BumpMap", "Normal Map");
+            P("_BumpScale");
+            Space();
+            P("_DetailToggle", "Second high-frequency layer.");
+            using (Disabled(!On("_DetailToggle")))
             {
-                TexProp("_BumpMap", "Normal Map");
-                Prop("_BumpScale");
-            }
-            Prop("_DetailToggle");
-            if (GetFloat("_DetailToggle") > 0.5f)
-            {
-                TexProp("_DetailAlbedoMap", "Detail Albedo");
-                TexProp("_DetailNormalMap", "Detail Normal");
-                Prop("_DetailNormalMapScale");
-                TexProp("_DetailMask", "Detail Mask (A)");
+                Tex("_DetailAlbedoMap", "Detail Albedo (x2)");
+                Tex("_DetailNormalMap", "Detail Normal");
+                P("_DetailNormalMapScale");
+                Tex("_DetailMask", "Detail Mask (A)");
             }
         });
 
-        Section("Surface (PBR)", () =>
+        Section("Surface (PBR)", "_MetalToggle", () =>
         {
-            Prop("_MetalToggle");
-            if (GetFloat("_MetalToggle") > 0.5f)
+            using (Disabled(!On("_MetalToggle")))
             {
-                TexProp("_MetallicGlossMap", "Metallic (R) Smooth (A)");
-                Prop("_GlossMapScale");
+                Tex("_MetallicGlossMap", "Metallic(R) Smooth(A)");
+                P("_GlossMapScale");
             }
-            Prop("_Metallic");
-            Prop("_Glossiness");
-            Prop("_SpecularTint");
-            Prop("_OcclToggle");
-            if (GetFloat("_OcclToggle") > 0.5f)
+            P("_Metallic");
+            P("_Glossiness", "Smoothness — higher = sharper, wetter reflections.");
+            P("_SpecularTint", "Tint specular by albedo for stylised metals.");
+            Space();
+            P("_OcclToggle");
+            using (Disabled(!On("_OcclToggle")))
             {
-                TexProp("_OcclusionMap", "Occlusion (G)");
-                Prop("_OcclusionStrength");
-            }
-        });
-
-        Section("Reflections", () =>
-        {
-            Prop("_NoReflections");
-            if (GetFloat("_NoReflections") < 0.5f)
-            {
-                Prop("_ReflectionStrength");
-                Prop("_ReflectionTint");
-                Prop("_ReflectionFresnel");
-                Prop("_SpecularOcclusion");
-                TexProp("_Cubemap", "Fallback Cubemap");
-                Prop("_CubemapBlend");
-            }
-            Prop("_NoSpecHi");
-        });
-
-        Section("Emission Glow", () =>
-        {
-            Prop("_EmissionToggle");
-            if (GetFloat("_EmissionToggle") > 0.5f)
-            {
-                TexProp("_EmissionMap", "Emission", "_EmissionColor");
-                Prop("_EmissionStrength");
-                Prop("_EmissionPulseSpeed");
-                Prop("_EmissionPulseMin");
-                Prop("_EmissionScroll");
-                Prop("_EmissionGradientStrength");
-                if (GetFloat("_EmissionToggle") > 0.5f)
-                    mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+                Tex("_OcclusionMap", "Occlusion (G)");
+                P("_OcclusionStrength");
             }
         });
 
-        Section("Wetness", () =>
+        Section("Reflections", null, () =>
         {
-            Prop("_WetnessToggle");
-            if (GetFloat("_WetnessToggle") > 0.5f)
+            P("_NoReflections", "Disable environment reflections entirely.");
+            using (Disabled(On("_NoReflections")))
             {
-                TexProp("_WetnessMask", "Wetness Mask (R)");
-                Prop("_Wetness");
-                Prop("_WetnessSmoothness");
-                Prop("_WetnessColor");
-                Prop("_WetnessMetallic");
-                Prop("_WetnessUpAccumulation");
-                TexProp("_DropletNormal", "Droplet Normal");
-                Prop("_DropletStrength");
+                P("_ReflectionStrength");
+                P("_ReflectionTint");
+                P("_ReflectionFresnel", "How much glancing angles boost reflection.");
+                P("_SpecularOcclusion");
+                Tex("_Cubemap", "Fallback Cubemap");
+                P("_CubemapBlend", "0 = scene probes, 1 = the cubemap above.");
             }
+            P("_NoSpecHi", "Disable direct specular highlights.");
         });
 
-        Section("Sweat", () =>
+        Section("Clear Coat", "_ClearCoatToggle", () =>
         {
-            Prop("_SweatToggle");
-            if (GetFloat("_SweatToggle") > 0.5f)
-            {
-                TexProp("_SweatMask", "Sweat Mask (R)");
-                Prop("_SweatAmount");
-                Prop("_SweatSpeed");
-                Prop("_SweatSparkle");
-                Prop("_SweatScale");
-            }
+            P("_ClearCoat", "Strength of the glossy lacquer layer.");
+            P("_ClearCoatSmoothness", "Sharpness of the coat reflection.");
+            P("_ClearCoatColor");
         });
 
-        Section("Rim Light", () =>
+        Section("Anisotropy", "_AnisoToggle", () =>
         {
-            Prop("_RimToggle");
-            if (GetFloat("_RimToggle") > 0.5f)
-            {
-                Prop("_RimColor");
-                Prop("_RimPower");
-                Prop("_RimStrength");
-                Prop("_RimBias");
-            }
+            P("_Anisotropy", "Stretch the highlight: -1 to 1.");
+            P("_AnisoAngle", "Direction of the stretched highlight.");
         });
 
-        Section("Matcap", () =>
+        Section("Iridescence", "_IridToggle", () =>
         {
-            Prop("_MatcapToggle");
-            if (GetFloat("_MatcapToggle") > 0.5f)
-            {
-                TexProp("_Matcap", "Matcap");
-                Prop("_MatcapStrength");
-                Prop("_MatcapBlend");
-            }
+            P("_Iridescence", "Thin-film colour-shift strength.");
+            P("_IridescenceFreq", "Colour banding frequency.");
+            P("_IridescenceShift", "Hue offset.");
         });
 
-        Section("Subsurface (SSS)", () =>
+        Section("Parallax Depth", "_ParallaxToggle", () =>
         {
-            Prop("_SSSToggle");
-            if (GetFloat("_SSSToggle") > 0.5f)
-            {
-                TexProp("_ThicknessMap", "Thickness");
-                Prop("_SSSColor");
-                Prop("_SSSStrength");
-                Prop("_SSSPower");
-                Prop("_SSSScale");
-            }
+            Tex("_ParallaxMap", "Height (G)");
+            P("_Parallax", "Apparent depth from the height map.");
         });
 
-        Section("Lighting", () =>
+        Section("Emission Glow", "_EmissionToggle", () =>
         {
-            Prop("_LightingDirectional");
-            Prop("_MinBrightness");
-            Prop("_MaxBrightness");
-            Prop("_ShadowBoost");
+            Tex("_EmissionMap", "Emission", "_EmissionColor", "HDR emission colour & map.");
+            P("_EmissionStrength");
+            P("_EmissionPulseSpeed", "0 = steady, higher = faster pulse.");
+            P("_EmissionPulseMin", "Lowest brightness of the pulse.");
+            P("_EmissionScroll", "Scroll the emission map (energy flow).");
+            P("_EmissionGradientStrength");
+            Space();
+            MiniLabel("Fresnel Glow (always-on rim glow)");
+            P("_FresnelGlowColor");
+            P("_FresnelGlowPower", "Width of the silhouette glow.");
+            P("_FresnelGlowStrength");
         });
 
-        Section("Animation", () =>
+        Section("Wetness", "_WetnessToggle", () =>
         {
-            Prop("_PulseSpeed");
-            Prop("_PulseAmount");
+            Tex("_WetnessMask", "Wetness Mask (R)");
+            P("_Wetness");
+            P("_WetnessSmoothness", "Smoothness of wet areas.");
+            P("_WetnessColor", "Wet darkening tint (water absorbs light).");
+            P("_WetnessMetallic");
+            P("_WetnessUpAccumulation", "Pool water on upward-facing surfaces.");
+            Tex("_DropletNormal", "Droplet Normal");
+            P("_DropletStrength");
         });
 
-        Section("Rendering & Blending", () =>
+        Section("Sweat", "_SweatToggle", () =>
+        {
+            Tex("_SweatMask", "Sweat Mask (R)");
+            P("_SweatAmount");
+            P("_SweatSpeed", "How fast droplets trickle down.");
+            P("_SweatSparkle", "Brightness of pinpoint glints.");
+            P("_SweatScale", "Droplet tiling.");
+        });
+
+        Section("Rim Light", "_RimToggle", () =>
+        {
+            P("_RimColor");
+            P("_RimPower", "Rim width (higher = thinner).");
+            P("_RimStrength");
+            P("_RimBias", "Bias the rim toward the light direction.");
+        });
+
+        Section("Matcap", "_MatcapToggle", () =>
+        {
+            Tex("_Matcap", "Matcap");
+            P("_MatcapStrength");
+            P("_MatcapBlend", "0 = additive, 1 = multiply.");
+        });
+
+        Section("Subsurface (SSS)", "_SSSToggle", () =>
+        {
+            Tex("_ThicknessMap", "Thickness");
+            P("_SSSColor");
+            P("_SSSStrength");
+            P("_SSSPower", "Falloff sharpness.");
+            P("_SSSScale", "Light wrap / distortion.");
+        });
+
+        Section("Color Grading", null, () =>
+        {
+            P("_Exposure");
+            P("_Contrast");
+            P("_FinalSaturation");
+            P("_Vibrance", "Smartly saturates the dull areas only.");
+            P("_HueShift");
+            P("_TonemapToggle", "Filmic ACES roll-off for rich HDR highlights.");
+        });
+
+        Section("Lighting", null, () =>
+        {
+            P("_LightingDirectional", "1 = full PBR, 0 = flat anime-style.");
+            P("_MinBrightness", "Keeps the avatar visible in dark worlds.");
+            P("_MaxBrightness", "Tames blinding worlds.");
+            P("_ShadowBoost", "Lift shadowed regions.");
+        });
+
+        Section("Animation", null, () =>
+        {
+            P("_PulseSpeed", "Subtle breathing speed.");
+            P("_PulseAmount", "Breathing displacement.");
+        });
+
+        Section("Rendering & Blending", null, () =>
         {
             EditorGUI.BeginChangeCheck();
-            int preset = (int)GetFloat("_DstBlend") == 0 ? 0 : 1;
-            preset = EditorGUILayout.Popup("Mode", preset, new[] { "Opaque / Cutout", "Transparent" });
+            int preset = (int)Get("_DstBlend") == 0 ? 0 : 1;
+            preset = EditorGUILayout.Popup(new GUIContent("Mode"), preset,
+                new[] { new GUIContent("Opaque / Cutout"), new GUIContent("Transparent") });
             if (EditorGUI.EndChangeCheck())
-                foreach (Material m in MaterialsOf()) ApplyBlendPreset(m, preset);
+                foreach (Material m in Mats()) ApplyBlendPreset(m, preset);
 
-            Prop("_Cull");
-            Prop("_ZWrite");
-            Prop("_ZTest");
-            Prop("_SrcBlend");
-            Prop("_DstBlend");
-            Prop("_Premultiply");
+            P("_Cull");
+            P("_ZWrite");
+            P("_ZTest");
+            P("_SrcBlend");
+            P("_DstBlend");
+            P("_Premultiply");
         });
 
         EditorGUILayout.Space();
-        materialEditor.RenderQueueField();
-        materialEditor.EnableInstancingField();
-        materialEditor.DoubleSidedGIField();
+        _editor.RenderQueueField();
+        _editor.EnableInstancingField();
+        _editor.DoubleSidedGIField();
     }
 
-    // ---- helpers -----------------------------------------------------
-    private IEnumerable<Material> MaterialsOf()
+    // ===================== Presets =====================
+    private void PresetBar()
     {
-        foreach (var o in _editor.targets) yield return (Material)o;
+        var box = new GUIStyle(EditorStyles.helpBox) { padding = new RectOffset(6, 6, 6, 6) };
+        EditorGUILayout.BeginVertical(box);
+        EditorGUILayout.LabelField("Quick Looks", EditorStyles.miniBoldLabel);
+        EditorGUILayout.BeginHorizontal();
+        if (Chip("🔥 Demon Skin"))   foreach (var m in Mats()) PresetDemon(m);
+        if (Chip("💧 Wet Latex"))    foreach (var m in Mats()) PresetLatex(m);
+        if (Chip("💦 Sweaty"))       foreach (var m in Mats()) PresetSweat(m);
+        if (Chip("🦋 Iridescent"))   foreach (var m in Mats()) PresetIridescent(m);
+        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.Space(2);
     }
 
+    private void PresetDemon(Material m)
+    {
+        SetF(m, "_Metallic", 0.6f); SetF(m, "_Glossiness", 0.85f);
+        SetF(m, "_ReflectionStrength", 1.5f); SetF(m, "_ReflectionFresnel", 1f);
+        SetKw(m, "_EMISSION", true);  SetF(m, "_EmissionToggle", 1);
+        SetC(m, "_EmissionColor", new Color(4f, 0.2f, 0.05f, 1f));
+        SetF(m, "_EmissionStrength", 4f);
+        SetF(m, "_EmissionPulseSpeed", 1.5f); SetF(m, "_EmissionPulseMin", 0.5f);
+        SetKw(m, "_CLEARCOAT_ON", true); SetF(m, "_ClearCoatToggle", 1);
+        SetF(m, "_ClearCoat", 1f); SetF(m, "_ClearCoatSmoothness", 0.92f);
+        SetKw(m, "_RIM_ON", true); SetF(m, "_RimToggle", 1);
+        SetC(m, "_RimColor", new Color(3f, 0.15f, 0.05f, 1f));
+        SetF(m, "_RimPower", 6f); SetF(m, "_RimStrength", 1.5f);
+        SetC(m, "_FresnelGlowColor", new Color(2f, 0.1f, 0.05f, 1f));
+        SetF(m, "_FresnelGlowStrength", 0.6f); SetF(m, "_FresnelGlowPower", 5f);
+        SetKw(m, "_TONEMAP_ON", true); SetF(m, "_TonemapToggle", 1);
+        SetF(m, "_Contrast", 1.1f); SetF(m, "_Vibrance", 0.3f);
+    }
+
+    private void PresetLatex(Material m)
+    {
+        SetF(m, "_Metallic", 0.05f); SetF(m, "_Glossiness", 0.7f);
+        SetKw(m, "_WETNESS_ON", true); SetF(m, "_WetnessToggle", 1);
+        SetF(m, "_Wetness", 0.7f); SetF(m, "_WetnessSmoothness", 0.96f);
+        SetC(m, "_WetnessColor", new Color(0.45f, 0.45f, 0.45f, 1f));
+        SetF(m, "_WetnessMetallic", 0.12f);
+        SetKw(m, "_CLEARCOAT_ON", true); SetF(m, "_ClearCoatToggle", 1);
+        SetF(m, "_ClearCoat", 1f); SetF(m, "_ClearCoatSmoothness", 0.95f);
+        SetF(m, "_ReflectionStrength", 1.3f); SetF(m, "_ReflectionFresnel", 1f);
+        SetKw(m, "_TONEMAP_ON", true); SetF(m, "_TonemapToggle", 1);
+        SetF(m, "_Vibrance", 0.4f);
+    }
+
+    private void PresetSweat(Material m)
+    {
+        SetKw(m, "_SWEAT_ON", true); SetF(m, "_SweatToggle", 1);
+        SetF(m, "_SweatAmount", 0.45f); SetF(m, "_SweatSparkle", 1.6f);
+        SetF(m, "_SweatSpeed", 0.2f); SetF(m, "_SweatScale", 5f);
+        SetF(m, "_Glossiness", 0.65f);
+        SetKw(m, "_SSS_ON", true); SetF(m, "_SSSToggle", 1);
+        SetC(m, "_SSSColor", new Color(1f, 0.35f, 0.25f, 1f)); SetF(m, "_SSSStrength", 1f);
+        SetKw(m, "_TONEMAP_ON", true); SetF(m, "_TonemapToggle", 1);
+    }
+
+    private void PresetIridescent(Material m)
+    {
+        SetF(m, "_Metallic", 0.4f); SetF(m, "_Glossiness", 0.9f);
+        SetKw(m, "_IRIDESCENCE_ON", true); SetF(m, "_IridToggle", 1);
+        SetF(m, "_Iridescence", 0.8f); SetF(m, "_IridescenceFreq", 5f);
+        SetF(m, "_ReflectionStrength", 1.4f); SetF(m, "_ReflectionFresnel", 1f);
+        SetKw(m, "_CLEARCOAT_ON", true); SetF(m, "_ClearCoatToggle", 1);
+        SetKw(m, "_TONEMAP_ON", true); SetF(m, "_TonemapToggle", 1);
+        SetF(m, "_Vibrance", 0.5f);
+    }
+
+    // ===================== Blend presets =====================
     private void ApplyBlendPreset(Material m, int preset)
     {
-        if (preset == 0) // opaque / cutout
+        if (preset == 0)
         {
             bool cutout = m.HasProperty("_AlphaTest") && m.GetFloat("_AlphaTest") > 0.5f;
             m.SetFloat("_SrcBlend", (float)BlendMode.One);
             m.SetFloat("_DstBlend", (float)BlendMode.Zero);
             m.SetFloat("_ZWrite", 1);
             m.SetFloat("_Premultiply", 0);
-            DisableKeyword(m, "_ALPHAPREMULTIPLY_ON");
+            m.DisableKeyword("_ALPHAPREMULTIPLY_ON");
             m.renderQueue = cutout ? (int)RenderQueue.AlphaTest : (int)RenderQueue.Geometry;
             m.SetOverrideTag("RenderType", cutout ? "TransparentCutout" : "Opaque");
         }
-        else // transparent
+        else
         {
             m.SetFloat("_SrcBlend", (float)BlendMode.One);
             m.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
             m.SetFloat("_ZWrite", 0);
             m.SetFloat("_Premultiply", 1);
-            EnableKeyword(m, "_ALPHAPREMULTIPLY_ON");
+            m.EnableKeyword("_ALPHAPREMULTIPLY_ON");
             m.renderQueue = (int)RenderQueue.Transparent;
             m.SetOverrideTag("RenderType", "Transparent");
         }
     }
 
-    private static void EnableKeyword(Material m, string k) { m.EnableKeyword(k); }
-    private static void DisableKeyword(Material m, string k) { m.DisableKeyword(k); }
+    // ===================== UI primitives =====================
+    private void Banner()
+    {
+        Rect r = EditorGUILayout.GetControlRect(false, 40);
+        EditorGUI.DrawRect(r, new Color(0.12f, 0.10f, 0.16f, 1f));
+        Rect strip = new Rect(r.x, r.yMax - 2, r.width, 2);
+        EditorGUI.DrawRect(strip, Accent);
+        EditorGUI.LabelField(new Rect(r.x + 10, r.y + 4, r.width - 20, 20), "✦  LUMINESCENCE", _title);
+        EditorGUI.LabelField(new Rect(r.x + 10, r.y + 22, r.width - 20, 14),
+            "Premium VRChat avatar shader  ·  v" + Version, _sub);
+        EditorGUILayout.Space(2);
+    }
 
-    private void Section(string title, Action body)
+    private void Section(string title, string toggleProp, Action body)
     {
         if (!Foldouts.ContainsKey(title)) Foldouts[title] = true;
-        var style = new GUIStyle(EditorStyles.foldoutHeader) { fontStyle = FontStyle.Bold };
-        Foldouts[title] = EditorGUILayout.Foldout(Foldouts[title], title, true, style);
+        var tp = toggleProp != null ? Find(toggleProp) : null;
+        bool enabled = tp == null || tp.floatValue > 0.5f;
+
+        Rect bar = EditorGUILayout.GetControlRect(false, 22);
+        EditorGUI.DrawRect(bar, enabled ? BarOn : BarOff);
+        if (enabled)
+            EditorGUI.DrawRect(new Rect(bar.x, bar.y, 3, bar.height), Accent);
+
+        Rect foldRect = new Rect(bar.x + 10, bar.y + 3, bar.width - 40, 16);
+        Foldouts[title] = EditorGUI.Foldout(foldRect, Foldouts[title], title, true, _foldLabel);
+
+        if (tp != null)
+        {
+            Rect tRect = new Rect(bar.xMax - 22, bar.y + 3, 16, 16);
+            EditorGUI.BeginChangeCheck();
+            bool v = EditorGUI.Toggle(tRect, tp.floatValue > 0.5f);
+            if (EditorGUI.EndChangeCheck())
+            {
+                tp.floatValue = v ? 1f : 0f;
+                string kw = Keywords.ContainsKey(toggleProp) ? Keywords[toggleProp] : null;
+                if (kw != null) foreach (var m in Mats()) SetKw(m, kw, v);
+                enabled = v;
+            }
+        }
+
         if (Foldouts[title])
         {
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             EditorGUI.indentLevel++;
+            EditorGUI.BeginDisabledGroup(tp != null && !enabled);
             body();
+            EditorGUI.EndDisabledGroup();
             EditorGUI.indentLevel--;
-            EditorGUILayout.Space();
+            EditorGUILayout.EndVertical();
         }
+        EditorGUILayout.Space(1);
     }
 
-    private MaterialProperty Find(string name) => FindProperty(name, _props, false);
-
-    private float GetFloat(string name)
+    private bool Chip(string label)
     {
-        var p = Find(name);
-        return p != null ? p.floatValue : 0f;
+        return GUILayout.Button(label, _chip, GUILayout.Height(22));
     }
 
-    private void Prop(string name)
+    private void MiniLabel(string t) => EditorGUILayout.LabelField(t, EditorStyles.miniBoldLabel);
+    private void Space() => EditorGUILayout.Space(3);
+
+    // ===================== helpers =====================
+    private IEnumerable<Material> Mats()
     {
-        var p = Find(name);
-        if (p != null) _editor.ShaderProperty(p, p.displayName);
+        foreach (var o in _editor.targets) yield return (Material)o;
     }
 
-    private void TexProp(string name, string label, string extra = null)
+    private MaterialProperty Find(string n) => FindProperty(n, _props, false);
+    private float Get(string n) { var p = Find(n); return p != null ? p.floatValue : 0f; }
+    private bool On(string n) => Get(n) > 0.5f;
+
+    private void P(string n, string tip = null)
     {
-        var p = Find(name);
+        var p = Find(n);
+        if (p == null) return;
+        _editor.ShaderProperty(p, new GUIContent(p.displayName, tip));
+    }
+
+    private void Tex(string n, string label, string extra = null, string tip = null)
+    {
+        var p = Find(n);
         if (p == null) return;
         var ex = extra != null ? Find(extra) : null;
-        _editor.TexturePropertySingleLine(new GUIContent(label), p, ex);
+        _editor.TexturePropertySingleLine(new GUIContent(label, tip), p, ex);
         _editor.TextureScaleOffsetProperty(p);
+    }
+
+    private static void SetF(Material m, string n, float v) { if (m.HasProperty(n)) m.SetFloat(n, v); }
+    private static void SetC(Material m, string n, Color c) { if (m.HasProperty(n)) m.SetColor(n, c); }
+    private static void SetKw(Material m, string kw, bool on)
+    { if (on) m.EnableKeyword(kw); else m.DisableKeyword(kw); }
+
+    private IDisposable Disabled(bool d) => new DisabledScope(d);
+    private class DisabledScope : IDisposable
+    {
+        public DisabledScope(bool d) => EditorGUI.BeginDisabledGroup(d);
+        public void Dispose() => EditorGUI.EndDisabledGroup();
+    }
+
+    private void InitStyles()
+    {
+        if (_stylesReady) return;
+        _foldLabel = new GUIStyle(EditorStyles.foldout)
+        { fontStyle = FontStyle.Bold, richText = true };
+        _foldLabel.normal.textColor = _foldLabel.onNormal.textColor = new Color(0.92f, 0.92f, 0.95f);
+        _foldLabel.focused.textColor = _foldLabel.onFocused.textColor = new Color(0.92f, 0.92f, 0.95f);
+        _foldLabel.active.textColor = _foldLabel.onActive.textColor = Color.white;
+
+        _title = new GUIStyle(EditorStyles.boldLabel) { fontSize = 14 };
+        _title.normal.textColor = Color.white;
+        _sub = new GUIStyle(EditorStyles.miniLabel);
+        _sub.normal.textColor = new Color(0.75f, 0.7f, 0.8f);
+
+        _chip = new GUIStyle(EditorStyles.miniButton) { fontSize = 11 };
+        _stylesReady = true;
     }
 }
 #endif

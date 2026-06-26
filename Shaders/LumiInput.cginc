@@ -69,6 +69,30 @@ float     _SweatSpeed;          // trickle speed
 float     _SweatSparkle;        // bright pinpoint highlight intensity
 float     _SweatScale;
 
+// ---- Clear coat (lacquered / wet-look top layer) ----
+float     _ClearCoat;           // 0..1 strength
+float     _ClearCoatSmoothness; // top layer gloss
+float4    _ClearCoatColor;      // tint of the coat reflection
+float     _ClearCoatFresnel;
+
+// ---- Anisotropy (silky stretched highlights) ----
+float     _Anisotropy;          // -1..1
+float     _AnisoAngle;          // rotate the anisotropy direction (radians)
+
+// ---- Iridescence / thin-film sheen ----
+float     _Iridescence;         // 0..1 strength
+float     _IridescenceFreq;     // colour banding frequency
+float     _IridescenceShift;    // hue offset
+
+// ---- Parallax depth ----
+sampler2D _ParallaxMap;
+float     _Parallax;            // height scale
+
+// ---- Fresnel emissive glow (glows regardless of light) ----
+float4    _FresnelGlowColor;    // HDR
+float     _FresnelGlowPower;
+float     _FresnelGlowStrength;
+
 // ---- Rim light ----
 float4    _RimColor;
 float     _RimPower;
@@ -92,6 +116,13 @@ float     _MinBrightness;       // floor so avatars are never pitch black in dar
 float     _MaxBrightness;       // ceiling to tame over-bright worlds
 float     _ShadowBoost;         // lift shadowed regions
 float     _LightingDirectional; // 0 = flat ambient, 1 = full directional response
+
+// ---- Final colour grading ----
+float     _Contrast;
+float     _Vibrance;
+float     _FinalSaturation;
+float     _HueShift;
+float     _Exposure;
 
 // ---- Vertex distortion (subtle breathing / pulse) ----
 float     _PulseSpeed;

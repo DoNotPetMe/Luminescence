@@ -48,6 +48,33 @@ Shader "Luminescence/Avatar"
         _CubemapBlend       ("Use Fallback Cubemap", Range(0,1)) = 0
         [Toggle(_SPECULARHIGHLIGHTS_OFF)] _NoSpecHi ("Disable Specular Highlights", Float) = 0
 
+        [Header(Clear Coat)]
+        [Toggle(_CLEARCOAT_ON)] _ClearCoatToggle ("Enable Clear Coat", Float) = 0
+        _ClearCoat          ("Coat Strength", Range(0,1)) = 1
+        _ClearCoatSmoothness("Coat Smoothness", Range(0,1)) = 0.9
+        _ClearCoatColor     ("Coat Tint", Color) = (1,1,1,1)
+
+        [Header(Anisotropy)]
+        [Toggle(_ANISOTROPY_ON)] _AnisoToggle ("Enable Anisotropy", Float) = 0
+        _Anisotropy         ("Anisotropy", Range(-1,1)) = 0.5
+        _AnisoAngle         ("Anisotropy Angle", Range(0,6.2831)) = 0
+
+        [Header(Iridescence)]
+        [Toggle(_IRIDESCENCE_ON)] _IridToggle ("Enable Iridescence", Float) = 0
+        _Iridescence        ("Iridescence", Range(0,1)) = 0.5
+        _IridescenceFreq    ("Color Frequency", Range(1,12)) = 4
+        _IridescenceShift   ("Hue Shift", Range(0,1)) = 0
+
+        [Header(Parallax Depth)]
+        [Toggle(_PARALLAX_ON)] _ParallaxToggle ("Enable Parallax", Float) = 0
+        _ParallaxMap        ("Height (G)", 2D) = "grey" {}
+        _Parallax           ("Height Scale", Range(0,1)) = 0.2
+
+        [Header(Fresnel Glow)]
+        [HDR] _FresnelGlowColor ("Glow Color", Color) = (0,0,0,1)
+        _FresnelGlowPower   ("Glow Width", Range(0.1,16)) = 4
+        _FresnelGlowStrength("Glow Strength", Range(0,8)) = 0
+
         [Header(Emission Glow)]
         [Toggle(_EMISSION)] _EmissionToggle ("Enable Emission", Float) = 0
         _EmissionMap        ("Emission Map", 2D) = "white" {}
@@ -97,6 +124,14 @@ Shader "Luminescence/Avatar"
         _SSSStrength        ("SSS Strength", Range(0,4)) = 1
         _SSSPower           ("SSS Falloff", Range(0.1,16)) = 4
         _SSSScale           ("SSS Distortion", Range(0,1)) = 0.5
+
+        [Header(Color Grading)]
+        _Exposure           ("Exposure", Range(0,4)) = 1
+        _Contrast           ("Contrast", Range(0,2)) = 1
+        _FinalSaturation    ("Saturation", Range(0,2)) = 1
+        _Vibrance           ("Vibrance", Range(0,2)) = 0
+        _HueShift           ("Hue Shift", Range(-3.1416,3.1416)) = 0
+        [Toggle(_TONEMAP_ON)] _TonemapToggle ("Filmic Tonemap", Float) = 0
 
         [Header(Lighting)]
         _LightingDirectional("Directional Response", Range(0,1)) = 1
@@ -155,6 +190,11 @@ Shader "Luminescence/Avatar"
             #pragma shader_feature_local _RIM_ON
             #pragma shader_feature_local _MATCAP_ON
             #pragma shader_feature_local _SSS_ON
+            #pragma shader_feature_local _CLEARCOAT_ON
+            #pragma shader_feature_local _ANISOTROPY_ON
+            #pragma shader_feature_local _IRIDESCENCE_ON
+            #pragma shader_feature_local _PARALLAX_ON
+            #pragma shader_feature_local _TONEMAP_ON
             #pragma shader_feature_local _ALPHATEST_ON
             #pragma shader_feature_local _ALPHAPREMULTIPLY_ON
             #pragma shader_feature_local _GLOSSYREFLECTIONS_OFF
@@ -193,6 +233,9 @@ Shader "Luminescence/Avatar"
             #pragma shader_feature_local _SWEAT_ON
             #pragma shader_feature_local _RIM_ON
             #pragma shader_feature_local _SSS_ON
+            #pragma shader_feature_local _CLEARCOAT_ON
+            #pragma shader_feature_local _ANISOTROPY_ON
+            #pragma shader_feature_local _PARALLAX_ON
             #pragma shader_feature_local _ALPHATEST_ON
             #pragma shader_feature_local _ALPHAPREMULTIPLY_ON
             #pragma shader_feature_local _SPECULARHIGHLIGHTS_OFF

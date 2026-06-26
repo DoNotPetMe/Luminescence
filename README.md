@@ -16,14 +16,19 @@ surfaces, animated sweat, rim glow and more.
 |-------|--------------|
 | **PBR core** | Energy-conserving GGX specular + Smith visibility, metallic/smoothness workflow, albedo/normal/occlusion maps. |
 | **Reflections** | Box-projected reflection probes with probe blending, roughness-aware mips, Fresnel edge boost, specular occlusion, and an optional **fallback cubemap** for worlds with no probes. |
-| **Emission glow** | HDR emission map with **pulsing**, **scrolling**, and a gradient boost — perfect for the glowing red cracks. |
+| **Clear coat** ✨ | A second, sharp lacquer specular lobe with its own reflection — the secret to a wet, premium latex/glass finish. |
+| **Anisotropy** ✨ | Stretched, silky highlights with adjustable direction — gorgeous on skin, hair and brushed metals. |
+| **Iridescence** ✨ | Thin-film colour-shifting sheen on the reflections for that high-end, otherworldly look. |
+| **Parallax depth** ✨ | Height-mapped UV offset that gives cracks and scales real perceived depth. |
+| **Emission glow** | HDR emission map with **pulsing**, **scrolling**, a gradient boost, plus an always-on **Fresnel rim glow** — perfect for glowing red cracks and burning silhouettes. |
 | **Wetness** | Wet-mask driven darkening, smoothness boost, added metalness, **top-face pooling**, and tiling **droplet normals**. |
 | **Sweat** | Animated, gravity-biased trickling droplets with bright pinpoint **sparkle** highlights. |
 | **Rim light** | HDR rim with adjustable width, strength and light-direction bias. |
 | **Matcap** | Camera-space fake reflection (additive or multiply) — cheap extra shine. |
 | **Subsurface** | Thickness-mapped translucency for skin / latex glow-through. |
 | **Lighting safety** | Min/Max brightness clamps and shadow lift so the avatar reads well in dark *and* over-bright worlds; vertex lights + additive realtime lights + shadows. |
-| **Quality of life** | Organised foldout inspector, transparency presets, GPU instancing, alpha cutout, gentle vertex "breathing". |
+| **Color grading** ✨ | Final-stage exposure, contrast, saturation, smart vibrance, hue shift and an optional **ACES filmic tonemap** for a rich, cinematic roll-off. |
+| **Quality of life** | Compact styled inspector with inline section toggles, tooltips, **one-click look presets**, transparency presets, GPU instancing, alpha cutout, gentle vertex "breathing". |
 
 ---
 
@@ -38,6 +43,19 @@ surfaces, animated sweat, rim glow and more.
 > per-pixel detail). It is not optimised for the Quest mobile feature set.
 
 ---
+
+## One-click looks
+
+The inspector has a **Quick Looks** bar at the top. Click a chip to instantly
+configure the material:
+
+- **🔥 Demon Skin** — reflective black, glowing red emission + pulse, clear coat,
+  red rim & Fresnel glow, filmic tonemap.
+- **💧 Wet Latex** — high smoothness, wetness layer + clear coat, strong reflections.
+- **💦 Sweaty** — animated sparkle sweat + warm subsurface glow.
+- **🦋 Iridescent** — colour-shifting thin-film sheen over a glossy coat.
+
+Each preset is a great starting point — tweak from there with the full controls.
 
 ## Recreating the reference looks
 
