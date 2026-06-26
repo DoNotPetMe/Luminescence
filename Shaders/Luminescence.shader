@@ -28,11 +28,11 @@ Shader "Luminescence/Avatar"
         [Header(Glitter Body Shimmer)]
         [Toggle(_GLITTER_ON)] _GlitterToggle ("Enable Glitter", Float) = 0
         [HDR] _GlitterColor ("Glitter Color", Color) = (1,0.8,0.95,1)
-        _GlitterIntensity   ("Glitter Intensity", Range(0,8)) = 1.5
-        _GlitterDensity     ("Glitter Density", Range(16,1024)) = 300
-        _GlitterCoverage    ("Glitter Coverage", Range(0,1)) = 0.5
-        _GlitterSpeed       ("Twinkle Speed", Range(0,16)) = 4
-        _GlitterSharpness   ("Twinkle Sharpness", Range(1,64)) = 16
+        _GlitterIntensity   ("Glitter Intensity", Range(0,8)) = 3
+        _GlitterDensity     ("Glitter Density", Range(16,1024)) = 450
+        _GlitterCoverage    ("Glitter Coverage", Range(0,1)) = 0.15
+        _GlitterSpeed       ("Twinkle Speed", Range(0,16)) = 3
+        _GlitterSharpness   ("Twinkle Sharpness", Range(1,64)) = 8
 
         [Header(Normal and Detail)]
         [Toggle(_NORMALMAP)] _NormalToggle ("Enable Normal Map", Float) = 0

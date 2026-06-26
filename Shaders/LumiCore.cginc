@@ -249,6 +249,31 @@ float SweatField(float2 uv)
     return smoothstep(0.30, 0.72, n * 2.0);
 }
 
+// Light-reactive metallic flakes: sparse cells, each a tiny randomly-tilted
+// mirror that flashes only when its microfacet lines up with the light.
+float GlitterSpec(float2 uv, float3 N, float3 V, float3 L, float ndotl)
+{
+    float2 cell = floor(uv * _GlitterDensity);
+    float present = step(1.0 - _GlitterCoverage, Hash21(cell + 7.3));
+    if (present < 0.5) return 0.0;
+    float r1 = Hash21(cell);
+    float r2 = Hash21(cell + 3.1);
+    float r3 = Hash21(cell + 9.7);
+    float3 flakeN = normalize(N + (float3(r1, r2, r3) - 0.5) * 1.4);
+    float3 H = normalize(L + V);
+    float spec = pow(saturate(dot(flakeN, H)), _GlitterSharpness * 16.0 + 16.0);
+    float twinkle = saturate(sin(r1 * 6.2831 + _Time.y * _GlitterSpeed) * 0.7 + 0.4);
+    return spec * ndotl * twinkle;
+}
+
+// Thin-film oil-slick tint for reflections — shifts with view angle, surface
+// orientation and a slow flow. Stays on the surface; never a flat overlay.
+float3 HoloTint(float ndotv, float3 N)
+{
+    float flow = _Time.y * _HoloSpeed * 0.15 + N.y * 2.0;
+    return Iridescence(ndotv * _HoloFreq + flow, _HoloFreq, _HoloShift);
+}
+
 // ---------------------------------------------------------------------
 //  Surface assembly
 // ---------------------------------------------------------------------
@@ -265,6 +290,7 @@ struct Surface
     float3 bitangentWorld;
     float  sweatSparkle;
     float  thickness;
+    float2 uv;
 };
 
 Surface BuildSurface(v2f i, float3 geomNormal)
@@ -402,40 +428,16 @@ Surface BuildSurface(v2f i, float3 geomNormal)
         emission += _FresnelGlowColor.rgb * fres * _FresnelGlowStrength;
     }
 
-    // ---- Glitter / body shimmer: twinkling flakes that catch the eye ----
-#if defined(_GLITTER_ON)
-    {
-        float2 cell = floor(i.uv.xy * _GlitterDensity);
-        float rnd  = Hash21(cell);
-        float rnd2 = Hash21(cell + 7.3);
-        float ndv  = saturate(dot(n, normalize(i.viewDir)));
-        float twinkle = sin(rnd * 6.2831 + _Time.y * _GlitterSpeed + ndv * 12.0) * 0.5 + 0.5;
-        float spark = pow(twinkle, max(_GlitterSharpness, 0.1));
-        float present = step(1.0 - _GlitterCoverage, rnd2);
-        emission += spark * present * _GlitterColor.rgb * _GlitterIntensity;
-    }
-#endif
-
-    // ---- Holographic oil-slick: flowing, view-shifting iridescent film ----
-#if defined(_HOLO_ON)
-    {
-        float2 huv = i.uv.xy * _HoloScale + _Time.y * _HoloSpeed * float2(0.11, 0.07);
-        float flow = VNoise(huv) + 0.5 * VNoise(huv * 2.1 + 7.0);
-        float ndv = saturate(dot(n, normalize(i.viewDir)));
-        float3 holo = Iridescence(ndv * 1.5 + flow * 0.6, _HoloFreq, _HoloShift);
-        emission += holo * _HoloStrength * (0.35 + 0.65 * (1.0 - ndv));
-    }
-#endif
-
-    // ---- Inner glow: lit-from-within core that breathes / beats ----
+    // ---- Inner glow: backlit translucency that breathes / beats. Edge-weighted
+    //      (brightest where the form is thin), so it never floods the front. ----
 #if defined(_INNERGLOW_ON)
     {
-        float ndv = saturate(dot(n, normalize(i.viewDir)));
-        float core = pow(ndv, max(_InnerGlowPower, 0.01));
+        float ndv  = saturate(dot(n, normalize(i.viewDir)));
+        float edge = pow(1.0 - ndv, max(_InnerGlowPower, 0.01));
         float sine = sin(_Time.y * _InnerGlowPulse) * 0.5 + 0.5;
-        float beat = Heartbeat(_Time.y * _InnerGlowPulse * 0.25);
+        float beat = Heartbeat(_Time.y * _InnerGlowPulse * 0.18);
         float pulse = lerp(_InnerGlowPulseMin, 1.0, lerp(sine, beat, _InnerGlowHeartbeat));
-        emission += _InnerGlowColor.rgb * core * _InnerGlowStrength * pulse;
+        emission += _InnerGlowColor.rgb * edge * _InnerGlowStrength * pulse;
     }
 #endif
 
@@ -447,6 +449,7 @@ Surface BuildSurface(v2f i, float3 geomNormal)
     s.normalWorld = n;
     s.tangentWorld   = wTangent;
     s.bitangentWorld = wBitangent;
+    s.uv          = i.uv.xy;
     s.thickness   = 1.0;
 #if defined(_SSS_ON)
     s.thickness   = tex2D(_ThicknessMap, i.uv.xy).r;
@@ -535,6 +538,12 @@ float3 LightingPBR(Surface s, float3 viewDir, float3 worldPos, float3 lightColor
     float sweatGlint = pow(ndoth, 90.0) * 6.0 + pow(1.0 - ndotv, 4.0) * 0.5;
     direct += s.sweatSparkle * sweatGlint * lightColor * atten;
 
+    // ---- Glitter: sparse, light-reactive metallic flakes ----
+#if defined(_GLITTER_ON)
+    float glint = GlitterSpec(s.uv, N, V, L, ndotl);
+    direct += glint * _GlitterColor.rgb * _GlitterIntensity * lightColor * atten;
+#endif
+
     // ---- Sheen, lit portion ----
 #if defined(_SHEEN_ON)
     direct += sheenCol * lerp(1.0, ndotl, _SheenLit) * lightColor * atten;
@@ -565,6 +574,13 @@ float3 LightingPBR(Surface s, float3 viewDir, float3 worldPos, float3 lightColor
 #if defined(_IRIDESCENCE_ON)
     float3 iri = Iridescence(ndotv, _IridescenceFreq, _IridescenceShift);
     envF *= lerp(float3(1, 1, 1), iri, _Iridescence);
+#endif
+
+    // Holographic oil-slick: rainbow tint living in the reflection itself.
+#if defined(_HOLO_ON)
+    float3 holo = HoloTint(ndotv, N);
+    env  *= lerp(float3(1, 1, 1), holo * 2.0, saturate(_HoloStrength));
+    envF *= lerp(float3(1, 1, 1), holo * 1.5, saturate(_HoloStrength));
 #endif
 
     indirect += env * envF * _ReflectionStrength * _ReflectionTint.rgb * specOcc * coatAtten;

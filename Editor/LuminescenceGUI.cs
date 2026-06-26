@@ -361,6 +361,7 @@ public class LuminescenceGUI : ShaderGUI
         SetF(m, "_Metallic", 0f); SetF(m, "_Glossiness", 0.5f);
         SetF(m, "_FresnelGlowStrength", 0f);
         SetF(m, "_ReflectionStrength", 1f); SetF(m, "_ReflectionFresnel", 1f);
+        SetC(m, "_ReflectionTint", Color.white);
         SetF(m, "_Exposure", 1f); SetF(m, "_Contrast", 1f);
         SetF(m, "_FinalSaturation", 1f); SetF(m, "_Vibrance", 0f); SetF(m, "_HueShift", 0f);
     }
@@ -533,92 +534,95 @@ public class LuminescenceGUI : ShaderGUI
 
     // ===================== Dangerous presets =====================
 
-    // Deep-space skin: dark body, twinkling star-glitter, holographic nebula
-    // flow and a soft inner glow.
+    // Deep-space chrome: dark metallic body, nebula holographic reflection
+    // and sparse twinkling star-flakes — like polished obsidian galaxy glass.
     private void PresetGalaxy(Material m)
     {
         ResetLook(m);
-        SetC(m, "_Color", new Color(0.06f, 0.05f, 0.10f, 1f));
-        SetF(m, "_Glossiness", 0.85f); SetF(m, "_Metallic", 0.2f);
-        Enable(m, "_GlitterToggle");
-        SetC(m, "_GlitterColor", new Color(1.2f, 1.1f, 1.6f, 1f));
-        SetF(m, "_GlitterIntensity", 3f); SetF(m, "_GlitterDensity", 500f);
-        SetF(m, "_GlitterCoverage", 0.4f); SetF(m, "_GlitterSpeed", 3f); SetF(m, "_GlitterSharpness", 28f);
+        SetC(m, "_Color", new Color(0.05f, 0.04f, 0.09f, 1f));
+        SetF(m, "_Metallic", 0.9f); SetF(m, "_Glossiness", 0.93f);
+        SetF(m, "_ReflectionStrength", 1.6f); SetF(m, "_ReflectionFresnel", 1f);
+        Enable(m, "_ClearCoatToggle"); SetF(m, "_ClearCoat", 1f); SetF(m, "_ClearCoatSmoothness", 0.97f);
         Enable(m, "_HoloToggle");
-        SetF(m, "_HoloStrength", 1.2f); SetF(m, "_HoloScale", 2.5f); SetF(m, "_HoloSpeed", 0.5f);
-        SetF(m, "_HoloFreq", 4f);
+        SetF(m, "_HoloStrength", 0.6f); SetF(m, "_HoloFreq", 3.5f); SetF(m, "_HoloSpeed", 0.4f);
+        Enable(m, "_GlitterToggle");
+        SetC(m, "_GlitterColor", new Color(1.2f, 1.2f, 1.8f, 1f));
+        SetF(m, "_GlitterIntensity", 3f); SetF(m, "_GlitterDensity", 520f);
+        SetF(m, "_GlitterCoverage", 0.1f); SetF(m, "_GlitterSharpness", 10f); SetF(m, "_GlitterSpeed", 2.5f);
         Enable(m, "_InnerGlowToggle");
-        SetC(m, "_InnerGlowColor", new Color(0.6f, 0.3f, 1.4f, 1f));
-        SetF(m, "_InnerGlowStrength", 0.8f); SetF(m, "_InnerGlowPower", 1.2f);
-        SetF(m, "_InnerGlowPulse", 1f); SetF(m, "_InnerGlowPulseMin", 0.5f);
-        Enable(m, "_ClearCoatToggle"); SetF(m, "_ClearCoat", 0.7f); SetF(m, "_ClearCoatSmoothness", 0.95f);
+        SetC(m, "_InnerGlowColor", new Color(0.7f, 0.35f, 1.6f, 1f));
+        SetF(m, "_InnerGlowStrength", 0.5f); SetF(m, "_InnerGlowPower", 3.5f);
+        SetF(m, "_InnerGlowPulse", 0.8f); SetF(m, "_InnerGlowPulseMin", 0.6f);
         Enable(m, "_TonemapToggle");
-        SetF(m, "_Contrast", 1.15f); SetF(m, "_Vibrance", 0.6f);
+        SetF(m, "_Contrast", 1.12f); SetF(m, "_Vibrance", 0.5f);
     }
 
-    // Oil-slick chrome: flowing rainbow holographic over a mirror coat.
+    // Oil-slick chrome: a flawless mirror whose every reflection runs with
+    // flowing rainbow — the reflection does the work, so it follows the body.
     private void PresetHolographic(Material m)
     {
         ResetLook(m);
-        SetC(m, "_Color", new Color(0.15f, 0.15f, 0.17f, 1f));
-        SetF(m, "_Glossiness", 0.95f); SetF(m, "_Metallic", 0.6f);
+        SetC(m, "_Color", new Color(0.55f, 0.55f, 0.58f, 1f));
+        SetF(m, "_Metallic", 0.95f); SetF(m, "_Glossiness", 0.96f);
+        SetF(m, "_ReflectionStrength", 1.7f); SetF(m, "_ReflectionFresnel", 1f);
         Enable(m, "_HoloToggle");
-        SetF(m, "_HoloStrength", 2.2f); SetF(m, "_HoloScale", 3.5f); SetF(m, "_HoloSpeed", 1.3f);
-        SetF(m, "_HoloFreq", 6f);
-        Enable(m, "_IridToggle"); SetF(m, "_Iridescence", 0.7f); SetF(m, "_IridescenceFreq", 6f);
-        Enable(m, "_ClearCoatToggle"); SetF(m, "_ClearCoat", 1f); SetF(m, "_ClearCoatSmoothness", 0.98f);
-        SetF(m, "_ReflectionStrength", 1.6f);
+        SetF(m, "_HoloStrength", 0.9f); SetF(m, "_HoloFreq", 5f); SetF(m, "_HoloSpeed", 0.8f);
+        Enable(m, "_ClearCoatToggle"); SetF(m, "_ClearCoat", 1f); SetF(m, "_ClearCoatSmoothness", 0.99f);
         Enable(m, "_TonemapToggle");
-        SetF(m, "_Contrast", 1.1f); SetF(m, "_Vibrance", 0.6f);
+        SetF(m, "_Contrast", 1.1f); SetF(m, "_Vibrance", 0.5f);
     }
 
-    // Burning seductress: dark red skin, beating inner glow, red gradient rim,
-    // edge fire and a sheen of sweat.
+    // Burning seductress: deep red glossy skin, a beating glow that lives only
+    // at the silhouette, a red gradient rim and a sheen of sweat.
     private void PresetSuccubus(Material m)
     {
         ResetLook(m);
-        SetC(m, "_Color", new Color(0.16f, 0.03f, 0.05f, 1f));
-        SetF(m, "_Glossiness", 0.82f); SetF(m, "_Metallic", 0.25f);
+        SetC(m, "_Color", new Color(0.20f, 0.03f, 0.04f, 1f));
+        SetF(m, "_Metallic", 0.3f); SetF(m, "_Glossiness", 0.85f);
+        SetF(m, "_ReflectionStrength", 1.4f); SetF(m, "_ReflectionFresnel", 1f);
         Enable(m, "_ClearCoatToggle"); SetF(m, "_ClearCoat", 0.9f); SetF(m, "_ClearCoatSmoothness", 0.92f);
-        Enable(m, "_InnerGlowToggle");
-        SetC(m, "_InnerGlowColor", new Color(3f, 0.1f, 0.15f, 1f));
-        SetF(m, "_InnerGlowStrength", 1.3f); SetF(m, "_InnerGlowPower", 1.6f);
-        SetF(m, "_InnerGlowPulse", 6f); SetF(m, "_InnerGlowPulseMin", 0.35f); SetF(m, "_InnerGlowHeartbeat", 1f);
-        SetC(m, "_FresnelGlowColor", new Color(3f, 0.12f, 0.05f, 1f));
-        SetF(m, "_FresnelGlowStrength", 1.1f); SetF(m, "_FresnelGlowPower", 3.5f);
         Enable(m, "_RimToggle");
-        SetC(m, "_RimColor", new Color(4f, 0.3f, 0.1f, 1f));
-        SetC(m, "_RimColor2", new Color(2f, 0.02f, 0.15f, 1f));
-        SetF(m, "_RimPower", 4f); SetF(m, "_RimStrength", 2.2f);
+        SetC(m, "_RimColor", new Color(4f, 0.35f, 0.12f, 1f));
+        SetC(m, "_RimColor2", new Color(2.5f, 0.03f, 0.12f, 1f));
+        SetF(m, "_RimPower", 3.5f); SetF(m, "_RimStrength", 1.8f);
+        Enable(m, "_InnerGlowToggle");
+        SetC(m, "_InnerGlowColor", new Color(2.5f, 0.06f, 0.1f, 1f));
+        SetF(m, "_InnerGlowStrength", 0.7f); SetF(m, "_InnerGlowPower", 3.5f);
+        SetF(m, "_InnerGlowPulse", 5.5f); SetF(m, "_InnerGlowPulseMin", 0.55f); SetF(m, "_InnerGlowHeartbeat", 1f);
         Enable(m, "_SweatToggle");
-        SetF(m, "_SweatAmount", 0.4f); SetF(m, "_SweatSparkle", 1.6f); SetF(m, "_SweatScale", 7f);
+        SetF(m, "_SweatAmount", 0.35f); SetF(m, "_SweatSparkle", 1.4f); SetF(m, "_SweatScale", 7f);
         Enable(m, "_TonemapToggle");
-        SetF(m, "_Contrast", 1.2f); SetF(m, "_Vibrance", 0.5f);
+        SetF(m, "_Contrast", 1.15f); SetF(m, "_Vibrance", 0.45f);
     }
 
-    // Radiant goddess: glowing warm skin, inner light, shimmer, blush, sheen.
+    // Radiant goddess: warm pearlescent skin, soft golden sheen, a whisper of
+    // shimmer and blush, and a backlit halo that gently breathes.
     private void PresetGoddess(Material m)
     {
         ResetLook(m);
-        SetF(m, "_Warmth", 0.3f); SetF(m, "_Glossiness", 0.6f);
-        Enable(m, "_InnerGlowToggle");
-        SetC(m, "_InnerGlowColor", new Color(1.6f, 1.2f, 0.7f, 1f));
-        SetF(m, "_InnerGlowStrength", 0.9f); SetF(m, "_InnerGlowPower", 1.4f);
-        SetF(m, "_InnerGlowPulse", 1.2f); SetF(m, "_InnerGlowPulseMin", 0.6f);
+        SetF(m, "_Warmth", 0.28f); SetF(m, "_Glossiness", 0.72f); SetF(m, "_Metallic", 0.08f);
+        SetC(m, "_ReflectionTint", new Color(1f, 0.92f, 0.78f, 1f)); SetF(m, "_ReflectionStrength", 1.2f);
         Enable(m, "_SheenToggle");
-        SetC(m, "_SheenColor", new Color(1.4f, 1.0f, 0.7f, 1f)); SetF(m, "_SheenIntensity", 1.2f);
+        SetC(m, "_SheenColor", new Color(1.4f, 1.05f, 0.7f, 1f));
+        SetF(m, "_SheenIntensity", 1.1f); SetF(m, "_SheenRoughness", 0.55f); SetF(m, "_SheenLit", 0.5f);
+        Enable(m, "_ClearCoatToggle"); SetF(m, "_ClearCoat", 0.55f); SetF(m, "_ClearCoatSmoothness", 0.88f);
+        Enable(m, "_IridToggle"); SetF(m, "_Iridescence", 0.25f); SetF(m, "_IridescenceFreq", 4f);
         Enable(m, "_GlitterToggle");
-        SetC(m, "_GlitterColor", new Color(1.5f, 1.2f, 0.8f, 1f));
-        SetF(m, "_GlitterIntensity", 1.5f); SetF(m, "_GlitterCoverage", 0.45f); SetF(m, "_GlitterDensity", 280f);
+        SetC(m, "_GlitterColor", new Color(1.6f, 1.3f, 0.85f, 1f));
+        SetF(m, "_GlitterIntensity", 2.2f); SetF(m, "_GlitterCoverage", 0.08f); SetF(m, "_GlitterDensity", 420f);
         Enable(m, "_BlushToggle");
-        SetC(m, "_BlushColor", new Color(1f, 0.5f, 0.5f, 1f)); SetF(m, "_BlushStrength", 0.45f);
+        SetC(m, "_BlushColor", new Color(1f, 0.55f, 0.55f, 1f)); SetF(m, "_BlushStrength", 0.4f); SetF(m, "_BlushFresnel", 0.35f);
         Enable(m, "_SSSToggle");
-        SetC(m, "_SSSColor", new Color(1f, 0.5f, 0.35f, 1f)); SetF(m, "_SSSStrength", 0.9f);
+        SetC(m, "_SSSColor", new Color(1f, 0.5f, 0.35f, 1f)); SetF(m, "_SSSStrength", 0.8f);
+        Enable(m, "_InnerGlowToggle");
+        SetC(m, "_InnerGlowColor", new Color(1.6f, 1.25f, 0.75f, 1f));
+        SetF(m, "_InnerGlowStrength", 0.5f); SetF(m, "_InnerGlowPower", 3f);
+        SetF(m, "_InnerGlowPulse", 1f); SetF(m, "_InnerGlowPulseMin", 0.65f);
         Enable(m, "_RimToggle");
-        SetC(m, "_RimColor", new Color(2f, 1.6f, 1f, 1f)); SetC(m, "_RimColor2", new Color(1.4f, 1f, 1.4f, 1f));
-        SetF(m, "_RimPower", 5f); SetF(m, "_RimStrength", 1.4f);
+        SetC(m, "_RimColor", new Color(2f, 1.7f, 1.1f, 1f)); SetC(m, "_RimColor2", new Color(1.5f, 1.1f, 1.5f, 1f));
+        SetF(m, "_RimPower", 5f); SetF(m, "_RimStrength", 1.2f);
         Enable(m, "_TonemapToggle");
-        SetF(m, "_Contrast", 1.08f); SetF(m, "_Vibrance", 0.45f);
+        SetF(m, "_Contrast", 1.06f); SetF(m, "_Vibrance", 0.4f);
     }
 
     // Liquid chrome: flawless mirror metal that drinks in the world.

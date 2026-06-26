@@ -74,13 +74,18 @@ them require you to paint any masks — they work on a bare avatar:
 
 The show-stoppers — designed to turn heads across the whole instance:
 
-- **🌌 Galaxy** — deep-space skin with twinkling star-glitter, a holographic
-  nebula flow and a soft purple inner glow.
-- **🪩 Holographic** — flowing rainbow oil-slick over a mirror clear coat.
-- **❤️‍🔥 Succubus** — dark red skin with a **beating** red inner glow, fiery
-  gradient rim, edge fire and a sheen of sweat.
-- **🌹 Goddess** — radiant warm skin lit from within, shimmer, blush and a
-  pearlescent rim.
+- **🌌 Galaxy** — polished obsidian-galaxy chrome: a dark metallic body with a
+  holographic nebula in its reflection and sparse twinkling star-flakes.
+- **🪩 Holographic** — a flawless mirror whose every reflection runs with flowing
+  rainbow. The reflection does the work, so it wraps the body perfectly.
+- **❤️‍🔥 Succubus** — deep red glossy skin with a red gradient rim and a **beating**
+  glow that lives only at the silhouette (never floods the form), plus sweat.
+- **🌹 Goddess** — warm pearlescent skin, soft golden sheen, a whisper of shimmer
+  and blush, and a gentle backlit halo.
+
+> The reflective dangerous looks (Galaxy, Holographic, Chrome, Honey) shine
+> brightest with a reflection probe or a skybox in the scene — their beauty
+> lives in what they reflect.
 - **🩸 Liquid Chrome** — a flawless mirror-metal body that drinks in the world.
 - **🍯 Honey** — warm molten-gold metal, slick and glistening like dripping honey.
 
