@@ -1140,10 +1140,12 @@ public class LuminescenceGUI : ShaderGUI
         var tp = toggleProp != null ? Find(toggleProp) : null;
         bool enabled = tp == null || tp.floatValue > 0.5f;
 
+        Color accent = AccentFor(title);
         Rect bar = EditorGUILayout.GetControlRect(false, 22);
-        EditorGUI.DrawRect(bar, enabled ? BarOn : BarOff);
+        Color barCol = enabled ? Color.Lerp(BarOn, accent, 0.22f) : BarOff;
+        EditorGUI.DrawRect(bar, barCol);
         if (enabled)
-            EditorGUI.DrawRect(new Rect(bar.x, bar.y, 3, bar.height), Accent);
+            EditorGUI.DrawRect(new Rect(bar.x, bar.y, 3, bar.height), accent);
 
         Rect foldRect = new Rect(bar.x + 10, bar.y + 3, bar.width - 40, 16);
         Foldouts[title] = EditorGUI.Foldout(foldRect, Foldouts[title], title, true, _foldLabel);
@@ -1173,6 +1175,46 @@ public class LuminescenceGUI : ShaderGUI
             EditorGUILayout.EndVertical();
         }
         EditorGUILayout.Space(1);
+    }
+
+    // Category accent colours so related sections read as a group.
+    private static readonly Color AcSexy = new Color(0.92f, 0.34f, 0.55f); // rose
+    private static readonly Color AcMat  = new Color(0.42f, 0.62f, 0.95f); // blue
+    private static readonly Color AcFx   = new Color(0.72f, 0.45f, 0.95f); // violet
+    private static readonly Color AcUtil = new Color(0.55f, 0.60f, 0.68f); // slate
+
+    private static Color AccentFor(string title)
+    {
+        switch (title)
+        {
+            case "Sheen — Skin Glow":
+            case "Wetness":
+            case "Sweat":
+            case "Blush — Flush":
+            case "Glitter — Body Shimmer":
+            case "Inner Glow":
+            case "Subsurface (SSS)":
+            case "Proximity Glow":
+            case "Rim Light":
+                return AcSexy;
+            case "Base":
+            case "Normal & Detail":
+            case "Surface (PBR)":
+            case "Reflections":
+            case "Clear Coat":
+                return AcMat;
+            case "Emission Glow":
+            case "Holographic Flow":
+            case "Iridescence":
+            case "Anisotropy":
+            case "Parallax Depth":
+            case "Matcap":
+            case "Dissolve":
+            case "AudioLink — React to Music":
+                return AcFx;
+            default:
+                return AcUtil;
+        }
     }
 
     private bool Chip(string label)
